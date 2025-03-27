@@ -23,8 +23,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Value("${app.default_role_id}")
-    private String defaultRoleId;
+    @Value("${app.default_role_name}")
+    private String defaultRoleName;
 
     public String signUp(SignupRequest sr) {
         try {
@@ -33,7 +33,7 @@ public class AuthService {
                 role = roleRepository.findById(sr.getRoleId())
                         .orElseThrow(() -> new RuntimeException("Role not found"));
             } else {
-                role = roleRepository.findById(defaultRoleId)
+                role = roleRepository.findByName(defaultRoleName)
                         .orElseThrow(() -> new RuntimeException("Default role not found"));
             }
 

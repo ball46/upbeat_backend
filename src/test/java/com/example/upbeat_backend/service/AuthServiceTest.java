@@ -4,7 +4,9 @@ import com.example.upbeat_backend.dto.request.auth.LoginRequest;
 import com.example.upbeat_backend.dto.request.auth.SignupRequest;
 import com.example.upbeat_backend.dto.response.auth.LoginResponse;
 import com.example.upbeat_backend.exception.auth.AuthException;
+import com.example.upbeat_backend.model.Role;
 import com.example.upbeat_backend.model.User;
+import com.example.upbeat_backend.repository.RoleRepository;
 import com.example.upbeat_backend.repository.UserRepository;
 import com.example.upbeat_backend.security.jwt.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
@@ -26,6 +29,9 @@ import static org.mockito.Mockito.when;
 public class AuthServiceTest {
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private RoleRepository roleRepository;
 
     @InjectMocks
     private AuthService authService;
@@ -42,6 +48,12 @@ public class AuthServiceTest {
                 .username("testUser")
                 .password("Test123*")
                 .email("test@example.com")
+                .roleId("1")
+                .build();
+
+        Role role = Role.builder()
+                .id("1")
+                .name("USER")
                 .build();
 
         User savedUser = User.builder()
@@ -49,8 +61,10 @@ public class AuthServiceTest {
                 .username("testUser")
                 .password("encodedPassword")
                 .email("test@example.com")
+                .role(role)
                 .build();
 
+        when(roleRepository.findById("1")).thenReturn(Optional.of(role));
         when(passwordEncoder.encode(any())).thenReturn("encodedPassword");
         when(userRepository.save(any())).thenReturn(savedUser);
 
@@ -60,7 +74,45 @@ public class AuthServiceTest {
     }
 
     @Test
+    void signUp_WithDefaultRoleName() {
+        ReflectionTestUtils.setField(authService, "defaultRoleName", "USER");
+
+        SignupRequest request = SignupRequest.builder()
+                .username("testUser")
+                .password("Test123*")
+                .email("test@example.com")
+                .roleId(null) // No role ID provided
+                .build();
+
+        Role defaultRole = Role.builder()
+                .id("default-role-id")
+                .name("USER")
+                .build();
+
+        User user = User.builder()
+                .id("1")
+                .username("testUser")
+                .password("encodedPassword")
+                .email("test@example.com")
+                .role(defaultRole)
+                .build();
+
+        when(roleRepository.findByName("USER")).thenReturn(Optional.of(defaultRole));
+        when(passwordEncoder.encode(any())).thenReturn("encodedPassword");
+        when(userRepository.save(any())).thenReturn(user);
+
+        String result = authService.signUp(request);
+        assertEquals("User created successfully.", result);
+        verify(roleRepository).findByName("USER");
+    }
+
+    @Test
     void signUp_DuplicateEmail() {
+        ReflectionTestUtils.setField(authService, "defaultRoleName", "USER");
+
+        Role defaultRole = Role.builder().id("default-id").name("USER").build();
+        when(roleRepository.findByName("USER")).thenReturn(Optional.of(defaultRole));
+
         SignupRequest request = SignupRequest.builder()
                 .username("testUser")
                 .password("Test123*")
@@ -75,6 +127,11 @@ public class AuthServiceTest {
 
     @Test
     void signUp_GenericException() {
+        ReflectionTestUtils.setField(authService, "defaultRoleName", "USER");
+
+        Role defaultRole = Role.builder().id("default-id").name("USER").build();
+        when(roleRepository.findByName("USER")).thenReturn(Optional.of(defaultRole));
+
         SignupRequest request = SignupRequest.builder()
                 .username("testUser")
                 .password("Test123*")
