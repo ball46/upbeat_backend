@@ -4,6 +4,9 @@ import com.example.upbeat_backend.dto.request.auth.LoginRequest;
 import com.example.upbeat_backend.dto.request.auth.SignupRequest;
 import com.example.upbeat_backend.dto.response.auth.LoginResponse;
 import com.example.upbeat_backend.exception.auth.AuthException;
+import com.example.upbeat_backend.exception.auth.TokenRefreshException;
+import com.example.upbeat_backend.model.RefreshToken;
+import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.security.jwt.JwtTokenProvider;
 import com.example.upbeat_backend.service.AuthService;
 import com.example.upbeat_backend.service.RefreshTokenService;
@@ -22,7 +25,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.time.Instant;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -74,6 +80,24 @@ public class AuthControllerTest {
         @ExceptionHandler(AuthException.AccountDeleted.class)
         @ResponseStatus(HttpStatus.FORBIDDEN)
         public ResponseEntity<String> handleAccountDeleted(AuthException.AccountDeleted ex) {
+            return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
+        }
+
+        @ExceptionHandler(TokenRefreshException.TokenNotFound.class)
+        @ResponseStatus(HttpStatus.NOT_FOUND)
+        public ResponseEntity<String> handleTokenNotFound(TokenRefreshException.TokenNotFound ex) {
+            return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+        }
+
+        @ExceptionHandler(TokenRefreshException.TokenExpired.class)
+        @ResponseStatus(HttpStatus.FORBIDDEN)
+        public ResponseEntity<String> handleTokenExpired(TokenRefreshException.TokenExpired ex) {
+            return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
+        }
+
+        @ExceptionHandler(TokenRefreshException.TokenReuse.class)
+        @ResponseStatus(HttpStatus.FORBIDDEN)
+        public ResponseEntity<String> handleTokenReuse(TokenRefreshException.TokenReuse ex) {
             return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
         }
     }
@@ -329,5 +353,49 @@ public class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void refreshToken_Success() throws Exception {
+        String refreshToken = "valid-refresh-token";
+        String newAccessToken = "new-access-token";
+
+        User user = User.builder()
+                .id("1")
+                .username("testUser")
+                .build();
+
+        RefreshToken validToken = RefreshToken.builder()
+                .id("123")
+                .token(refreshToken)
+                .user(user)
+                .expiryDate(Instant.now().plusSeconds(3600))
+                .build();
+
+        when(refreshTokenService.findByToken(eq(refreshToken))).thenReturn(validToken);
+        when(jwtTokenProvider.generateToken(any(User.class))).thenReturn(newAccessToken);
+
+        mockMvc.perform(post("/auth/refresh")
+                .header("Refresh-Token", refreshToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value(newAccessToken));
+    }
+
+    @Test
+    void refreshToken_InvalidToken() throws Exception {
+        String invalidToken = "invalid-token";
+
+        when(refreshTokenService.findByToken(eq(invalidToken)))
+                .thenThrow(new TokenRefreshException.TokenNotFound());
+
+        mockMvc.perform(post("/auth/refresh")
+                .header("Refresh-Token", invalidToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void refreshToken_MissingToken() throws Exception {
+        mockMvc.perform(post("/auth/refresh"))
+                .andExpect(status().isBadRequest());
     }
 }
