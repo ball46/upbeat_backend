@@ -6,6 +6,7 @@ import com.example.upbeat_backend.dto.response.auth.LoginResponse;
 import com.example.upbeat_backend.exception.auth.AuthException;
 import com.example.upbeat_backend.model.Role;
 import com.example.upbeat_backend.model.User;
+import com.example.upbeat_backend.model.enums.AccountStatus;
 import com.example.upbeat_backend.repository.RoleRepository;
 import com.example.upbeat_backend.repository.UserRepository;
 import com.example.upbeat_backend.security.jwt.JwtTokenProvider;
@@ -224,5 +225,45 @@ public class AuthServiceTest {
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
 
         assertThrows(AuthException.InvalidCredentials.class, () -> authService.login(request));
+    }
+
+    @Test
+    void login_AccountSuspended() {
+        LoginRequest request = new LoginRequest();
+        request.setUsernameOrEmail("suspended@example.com");
+        request.setPassword("password");
+
+        User user = User.builder()
+                .id("1")
+                .username("suspendedUser")
+                .email("suspended@example.com")
+                .password("encodedPassword")
+                .status(AccountStatus.SUSPENDED)
+                .build();
+
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
+                .thenReturn(Optional.of(user));
+
+        assertThrows(AuthException.AccountSuspended.class, () -> authService.login(request));
+    }
+
+    @Test
+    void login_AccountDeleted() {
+        LoginRequest request = new LoginRequest();
+        request.setUsernameOrEmail("deleted@example.com");
+        request.setPassword("password");
+
+        User user = User.builder()
+                .id("1")
+                .username("deletedUser")
+                .email("deleted@example.com")
+                .password("encodedPassword")
+                .status(AccountStatus.DELETED)
+                .build();
+
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
+                .thenReturn(Optional.of(user));
+
+        assertThrows(AuthException.AccountDeleted.class, () -> authService.login(request));
     }
 }

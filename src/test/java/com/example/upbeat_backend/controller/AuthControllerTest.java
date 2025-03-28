@@ -56,6 +56,18 @@ public class AuthControllerTest {
         public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
             return new ResponseEntity<>(ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
+
+        @ExceptionHandler(AuthException.AccountSuspended.class)
+        @ResponseStatus(HttpStatus.FORBIDDEN)
+        public ResponseEntity<String> handleAccountSuspended(AuthException.AccountSuspended ex) {
+            return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
+        }
+
+        @ExceptionHandler(AuthException.AccountDeleted.class)
+        @ResponseStatus(HttpStatus.FORBIDDEN)
+        public ResponseEntity<String> handleAccountDeleted(AuthException.AccountDeleted ex) {
+            return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
+        }
     }
 
     @BeforeEach
@@ -279,5 +291,35 @@ public class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")) // Empty JSON body
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void login_AccountSuspended() throws Exception {
+        LoginRequest request = LoginRequest.builder()
+                .usernameOrEmail("suspended@example.com")
+                .password("Test123*")
+                .build();
+
+        when(authService.login(any())).thenThrow(new AuthException.AccountSuspended());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void login_AccountDeleted() throws Exception {
+        LoginRequest request = LoginRequest.builder()
+                .usernameOrEmail("deleted@example.com")
+                .password("Test123*")
+                .build();
+
+        when(authService.login(any())).thenThrow(new AuthException.AccountDeleted());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
     }
 }
