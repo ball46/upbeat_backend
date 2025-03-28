@@ -5,6 +5,7 @@ import com.example.upbeat_backend.dto.request.auth.SignupRequest;
 import com.example.upbeat_backend.dto.response.auth.LoginResponse;
 import com.example.upbeat_backend.exception.auth.AuthException;
 import com.example.upbeat_backend.exception.role.RoleException;
+import com.example.upbeat_backend.model.RefreshToken;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.Role;
 import com.example.upbeat_backend.model.enums.AccountStatus;
@@ -24,6 +25,7 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${app.default_role_name}")
     private String defaultRoleName;
@@ -68,11 +70,14 @@ public class AuthService {
             throw new AuthException.InvalidCredentials();
         }
 
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
         return LoginResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .token(jwtTokenProvider.generateToken(user))
+                .refreshToken(refreshToken.getToken())
                 .build();
     }
 }

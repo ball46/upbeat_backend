@@ -18,8 +18,8 @@ public class JwtTokenProvider {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration}")
-    private int jwtExpiration;
+    @Value("${app.jwt.access-token-expiration-ms}")
+    private int accessTokenExpirationMs;
 
     @Contract(" -> new")
     private @NotNull Key getSigningKey() {
@@ -28,7 +28,7 @@ public class JwtTokenProvider {
 
     public String generateToken(@NotNull User user) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+        Date expiryDate = new Date(now.getTime() + accessTokenExpirationMs);
 
         return Jwts.builder()
                 .setSubject(user.getId())

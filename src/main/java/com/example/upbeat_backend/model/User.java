@@ -35,7 +35,7 @@ public class User {
     private String email;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(10)")
     @Builder.Default
     private AccountStatus status = AccountStatus.ACTIVE;
 
