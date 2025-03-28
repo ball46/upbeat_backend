@@ -4,6 +4,7 @@ import com.example.upbeat_backend.dto.request.auth.LoginRequest;
 import com.example.upbeat_backend.dto.request.auth.SignupRequest;
 import com.example.upbeat_backend.dto.response.auth.LoginResponse;
 import com.example.upbeat_backend.exception.auth.AuthException;
+import com.example.upbeat_backend.exception.role.RoleException;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.Role;
 import com.example.upbeat_backend.repository.RoleRepository;
@@ -31,10 +32,10 @@ public class AuthService {
             Role role;
             if (sr.getRoleId() != null) {
                 role = roleRepository.findById(sr.getRoleId())
-                        .orElseThrow(() -> new RuntimeException("Role not found"));
+                        .orElseThrow(() -> new RoleException.RoleNotFound(sr.getRoleId()));
             } else {
                 role = roleRepository.findByName(defaultRoleName)
-                        .orElseThrow(() -> new RuntimeException("Default role not found"));
+                        .orElseThrow(() -> new RoleException.RoleNotFound(defaultRoleName));
             }
 
             User user = User.builder()
@@ -48,6 +49,7 @@ public class AuthService {
         } catch (DataIntegrityViolationException e) {
             throw new AuthException.DuplicateEmail(sr.getEmail());
         } catch (Exception e) {
+            if (e instanceof RoleException.RoleNotFound) throw e;
             throw new RuntimeException("Failed to create user: " + e.getMessage());
         }
     }
