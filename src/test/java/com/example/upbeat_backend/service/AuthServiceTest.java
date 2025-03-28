@@ -4,6 +4,7 @@ import com.example.upbeat_backend.dto.request.auth.LoginRequest;
 import com.example.upbeat_backend.dto.request.auth.SignupRequest;
 import com.example.upbeat_backend.dto.response.auth.LoginResponse;
 import com.example.upbeat_backend.exception.auth.AuthException;
+import com.example.upbeat_backend.model.RefreshToken;
 import com.example.upbeat_backend.model.Role;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.enums.AccountStatus;
@@ -42,6 +43,9 @@ public class AuthServiceTest {
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
+
+    @Mock
+    private RefreshTokenService refreshTokenService;
 
     @Test
     void signUp_Success() {
@@ -147,9 +151,10 @@ public class AuthServiceTest {
 
     @Test
     void login_SuccessWithUsername() {
-        LoginRequest request = new LoginRequest();
-        request.setUsernameOrEmail("testUser");
-        request.setPassword("Test123*");
+        LoginRequest request = LoginRequest.builder()
+                .usernameOrEmail("testUser")
+                .password("Test123*")
+                .build();
 
         User user = User.builder()
                 .id(String.valueOf(1L))
@@ -158,9 +163,16 @@ public class AuthServiceTest {
                 .email("test@example.com")
                 .build();
 
+        RefreshToken refreshToken = RefreshToken.builder()
+                .id(String.valueOf(2L))
+                .token("refresh-token")
+                .user(user)
+                .build();
+
         when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
         when(jwtTokenProvider.generateToken(any())).thenReturn("jwt-token");
+        when(refreshTokenService.createRefreshToken(anyString())).thenReturn(refreshToken);
 
         LoginResponse response = authService.login(request);
 
@@ -169,13 +181,15 @@ public class AuthServiceTest {
         assertEquals("testUser", response.getUsername());
         assertEquals("test@example.com", response.getEmail());
         assertEquals("jwt-token", response.getToken());
+        assertEquals("refresh-token", response.getRefreshToken());
     }
 
     @Test
     void login_SuccessWithEmail() {
-        LoginRequest request = new LoginRequest();
-        request.setUsernameOrEmail("test@example.com");
-        request.setPassword("password");
+        LoginRequest request = LoginRequest.builder()
+                .usernameOrEmail("test@example.com")
+                .password("password")
+                .build();
 
         User user = User.builder()
                 .id("1")
@@ -184,10 +198,17 @@ public class AuthServiceTest {
                 .password("encodedPassword")
                 .build();
 
+        RefreshToken refreshToken = RefreshToken.builder()
+                .id("2")
+                .token("refresh-token")
+                .user(user)
+                .build();
+
         when(userRepository.findByUsernameOrEmail(eq("test@example.com"), eq("test@example.com")))
                 .thenReturn(Optional.of(user));
         when(passwordEncoder.matches(eq("password"), eq("encodedPassword"))).thenReturn(true);
         when(jwtTokenProvider.generateToken(user)).thenReturn("jwt-token");
+        when(refreshTokenService.createRefreshToken(eq("1"))).thenReturn(refreshToken);
 
         LoginResponse response = authService.login(request);
 
@@ -195,6 +216,7 @@ public class AuthServiceTest {
         assertEquals("testUser", response.getUsername());
         assertEquals("test@example.com", response.getEmail());
         assertEquals("jwt-token", response.getToken());
+        assertEquals("refresh-token", response.getRefreshToken());
     }
 
     @Test

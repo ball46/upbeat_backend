@@ -27,7 +27,7 @@ class JwtTokenProviderTest {
         String secretString = Base64.getEncoder().encodeToString(key.getEncoded());
 
         ReflectionTestUtils.setField(jwtTokenProvider, "jwtSecret", secretString);
-        ReflectionTestUtils.setField(jwtTokenProvider, "jwtExpiration", 3600000);
+        ReflectionTestUtils.setField(jwtTokenProvider, "accessTokenExpirationMs", 3600000);
     }
 
     @Test
@@ -80,7 +80,7 @@ class JwtTokenProviderTest {
 
     @Test
     void validateToken_ExpiredToken() {
-        ReflectionTestUtils.setField(jwtTokenProvider, "jwtExpiration", -10000);
+        ReflectionTestUtils.setField(jwtTokenProvider, "accessTokenExpirationMs", -10000);
         User user = User.builder().id("1").username("testUser").build();
 
         String token = jwtTokenProvider.generateToken(user);

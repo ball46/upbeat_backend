@@ -4,7 +4,9 @@ import com.example.upbeat_backend.dto.request.auth.LoginRequest;
 import com.example.upbeat_backend.dto.request.auth.SignupRequest;
 import com.example.upbeat_backend.dto.response.auth.LoginResponse;
 import com.example.upbeat_backend.exception.auth.AuthException;
+import com.example.upbeat_backend.security.jwt.JwtTokenProvider;
 import com.example.upbeat_backend.service.AuthService;
+import com.example.upbeat_backend.service.RefreshTokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,12 @@ public class AuthControllerTest {
 
     @Mock
     private AuthService authService;
+
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
+    @Mock
+    private JwtTokenProvider jwtTokenProvider;
 
     @RestControllerAdvice
     public static class TestControllerAdvice {
@@ -72,7 +80,7 @@ public class AuthControllerTest {
 
     @BeforeEach
     public void setup() {
-        AuthController authController = new AuthController(authService);
+        AuthController authController = new AuthController(authService, refreshTokenService, jwtTokenProvider);
         this.mockMvc = MockMvcBuilders
                 .standaloneSetup(authController)
                 .setControllerAdvice(new TestControllerAdvice())
