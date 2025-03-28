@@ -1,5 +1,6 @@
 package com.example.upbeat_backend.model;
 
+import com.example.upbeat_backend.model.enums.AccountStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,6 +33,11 @@ public class User {
 
     @Column(unique = true, nullable = false)
     private String email;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private AccountStatus status = AccountStatus.ACTIVE;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

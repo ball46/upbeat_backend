@@ -7,6 +7,7 @@ import com.example.upbeat_backend.exception.auth.AuthException;
 import com.example.upbeat_backend.exception.role.RoleException;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.Role;
+import com.example.upbeat_backend.model.enums.AccountStatus;
 import com.example.upbeat_backend.repository.RoleRepository;
 import com.example.upbeat_backend.repository.UserRepository;
 import com.example.upbeat_backend.security.jwt.JwtTokenProvider;
@@ -59,6 +60,9 @@ public class AuthService {
                 lr.getUsernameOrEmail(),
                 lr.getUsernameOrEmail()
         ).orElseThrow(AuthException.InvalidCredentials::new);
+
+        if (user.getStatus() == AccountStatus.SUSPENDED) throw new AuthException.AccountSuspended();
+        else if (user.getStatus() == AccountStatus.DELETED) throw new AuthException.AccountDeleted();
 
         if (!passwordEncoder.matches(lr.getPassword(), user.getPassword())) {
             throw new AuthException.InvalidCredentials();

@@ -27,4 +27,20 @@ public class AuthException {
                     "INVALID_PASSWORD");
         }
     }
+
+    public static class AccountSuspended extends BaseException {
+        public AccountSuspended() {
+            super("This account has been suspended",
+                    HttpStatus.FORBIDDEN,
+                    "ACCOUNT_SUSPENDED");
+        }
+    }
+
+    public static class AccountDeleted extends BaseException {
+        public AccountDeleted() {
+            super("This account has been deleted",
+                    HttpStatus.FORBIDDEN,
+                    "ACCOUNT_DELETED");
+        }
+    }
 }

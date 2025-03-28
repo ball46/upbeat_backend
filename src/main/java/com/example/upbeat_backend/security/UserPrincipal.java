@@ -1,7 +1,9 @@
 package com.example.upbeat_backend.security;
 
 import com.example.upbeat_backend.model.User;
+import com.example.upbeat_backend.model.enums.AccountStatus;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -11,6 +13,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+@RequiredArgsConstructor
 public class UserPrincipal implements UserDetails {
     @Getter
     private final String id;
@@ -19,15 +22,7 @@ public class UserPrincipal implements UserDetails {
     private final String email;
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities;
-
-    public UserPrincipal(String id, String username, String email, String password,
-                         Collection<? extends GrantedAuthority> authorities) {
-        this.id = id;
-        this.username = username;
-        this.email = email;
-        this.password = password;
-        this.authorities = authorities;
-    }
+    private final AccountStatus status;
 
     public static UserPrincipal create(User user) {
         Set<GrantedAuthority> authorities = new HashSet<>();
@@ -50,7 +45,8 @@ public class UserPrincipal implements UserDetails {
                 user.getUsername(),
                 user.getEmail(),
                 user.getPassword(),
-                authorities
+                authorities,
+                user.getStatus()
         );
     }
 
@@ -71,12 +67,12 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return true;
+        return status != AccountStatus.DELETED;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return status != AccountStatus.SUSPENDED;
     }
 
     @Override
@@ -86,6 +82,6 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return status == AccountStatus.ACTIVE;
     }
 }
