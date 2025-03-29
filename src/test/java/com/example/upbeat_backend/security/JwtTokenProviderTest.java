@@ -12,7 +12,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import javax.crypto.SecretKey;
-import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,9 +23,7 @@ class JwtTokenProviderTest {
     @BeforeEach
     void setUp() {
         SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
-        String secretString = Base64.getEncoder().encodeToString(key.getEncoded());
-
-        ReflectionTestUtils.setField(jwtTokenProvider, "jwtSecret", secretString);
+        ReflectionTestUtils.setField(jwtTokenProvider, "key", key);
         ReflectionTestUtils.setField(jwtTokenProvider, "accessTokenExpirationMs", 3600000);
     }
 

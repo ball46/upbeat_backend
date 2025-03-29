@@ -3,9 +3,9 @@ server.port=
 springdoc.api-docs.path=/docs
 springdoc.swagger-ui.path=/swagger-ui.html
 server.servlet.context-path=/api
+server.error.include-stacktrace=never
 logging.level.org.springframework.security=DEBUG
 
-jwt.secret=
 app.jwt.access-token-expiration-ms=
 app.jwt.refresh-token-expiration-ms=
 app.default_role_name=

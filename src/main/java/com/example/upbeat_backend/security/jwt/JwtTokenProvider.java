@@ -4,26 +4,26 @@ import com.example.upbeat_backend.model.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import org.jetbrains.annotations.Contract;
+import jakarta.annotation.PostConstruct;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
+    private SecretKey key;
 
     @Value("${app.jwt.access-token-expiration-ms}")
     private int accessTokenExpirationMs;
 
-    @Contract(" -> new")
-    private @NotNull Key getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+    @PostConstruct
+    public void init() {
+        // สร้างคีย์ที่ปลอดภัยสำหรับ HS512 โดยอัตโนมัติ
+        this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
     }
 
     public String generateToken(@NotNull User user) {
@@ -36,13 +36,13 @@ public class JwtTokenProvider {
                 .claim("email", user.getEmail())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
     }
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
         } catch (Exception e) {
             return false;
@@ -51,7 +51,7 @@ public class JwtTokenProvider {
 
     public String getUserIdFromToken(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+                .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody()

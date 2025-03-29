@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -29,11 +28,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        String errorMessage = ex.getBindingResult().getAllErrors().getFirst().getDefaultMessage();
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(400)
                 .error("Bad Request")
-                .message(Objects.requireNonNull(ex.getBindingResult().getFieldError()).getDefaultMessage())
+                .message(errorMessage)
                 .errorCode("VALIDATION_ERROR")
                 .path(request.getRequestURI())
                 .build();
