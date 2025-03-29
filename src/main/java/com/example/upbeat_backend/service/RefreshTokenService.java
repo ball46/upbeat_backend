@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -50,6 +51,7 @@ public class RefreshTokenService {
         }
     }
 
+    @Transactional
     public void deleteByUserId(String userId) {
         refreshTokenRepository.deleteByUserId(userId);
     }
