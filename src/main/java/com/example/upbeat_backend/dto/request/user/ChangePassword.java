@@ -1,5 +1,6 @@
 package com.example.upbeat_backend.dto.request.user;
 
+import com.example.upbeat_backend.validation.annotation.user.PasswordsNotEqual;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@PasswordsNotEqual
 public class ChangePassword {
     @NotBlank(message = "Old password is required")
     private String oldPassword;

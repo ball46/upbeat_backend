@@ -2,6 +2,7 @@ package com.example.upbeat_backend.security;
 
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.enums.AccountStatus;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -13,6 +14,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+@Builder
 @RequiredArgsConstructor
 public class UserPrincipal implements UserDetails {
     @Getter

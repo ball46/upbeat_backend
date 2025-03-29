@@ -8,6 +8,9 @@ import jakarta.validation.ConstraintValidatorContext;
 public class PasswordsNotEqualValidator implements ConstraintValidator<PasswordsNotEqual, ChangePassword> {
     @Override
     public boolean isValid(ChangePassword changePassword, ConstraintValidatorContext context) {
+        if (changePassword.getOldPassword() == null || changePassword.getNewPassword() == null) {
+            return true;
+        }
         return !changePassword.getOldPassword().equals(changePassword.getNewPassword());
     }
 }
