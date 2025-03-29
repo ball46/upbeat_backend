@@ -1,34 +1,27 @@
 package com.example.upbeat_backend.controller;
 
-import com.example.upbeat_backend.model.User;
-import com.example.upbeat_backend.repository.UserRepository;
-import org.springframework.web.bind.annotation.GetMapping;
+import com.example.upbeat_backend.dto.request.user.ChangePassword;
+import com.example.upbeat_backend.security.CurrentUser;
+import com.example.upbeat_backend.security.UserPrincipal;
+import com.example.upbeat_backend.service.UserService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/users")
 public class UserController {
-    private final UserRepository userRepository;
+    private final UserService userService;
 
-    public UserController(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
-
-    @GetMapping
-    public String test() {
-        User user = new User();
-        user.setUsername("test");
-        user.setPassword("test");
-        user.setEmail("test@gmail.com");
-        userRepository.save(user);
-        return "User created";
-    }
-
-    @GetMapping("/all")
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    @PostMapping("/change-password")
+    public ResponseEntity<String> changePassword(@Valid @RequestBody ChangePassword cp, @CurrentUser UserPrincipal currentUser) {
+        String userId = currentUser.getId();
+        String response = userService.changePassword(userId, cp);
+        return ResponseEntity.ok(response);
     }
 }
