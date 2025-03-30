@@ -8,6 +8,7 @@ import com.example.upbeat_backend.model.RefreshToken;
 import com.example.upbeat_backend.model.Role;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.enums.AccountStatus;
+import com.example.upbeat_backend.model.enums.LoginStatus;
 import com.example.upbeat_backend.repository.RoleRepository;
 import com.example.upbeat_backend.repository.UserRepository;
 import com.example.upbeat_backend.security.jwt.JwtTokenProvider;
@@ -46,6 +47,12 @@ public class AuthServiceTest {
 
     @Mock
     private RefreshTokenService refreshTokenService;
+
+    @Mock
+    private LoginHistoryService loginHistoryService;
+    
+    private static final String ipAddress = "127.0.0.1";
+    private static final String userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
     @Test
     void signUp_Success() {
@@ -174,7 +181,7 @@ public class AuthServiceTest {
         when(jwtTokenProvider.generateToken(any())).thenReturn("jwt-token");
         when(refreshTokenService.createRefreshToken(anyString())).thenReturn(refreshToken);
 
-        LoginResponse response = authService.login(request);
+        LoginResponse response = authService.login(request, ipAddress, userAgent);
 
         assertNotNull(response);
         assertEquals(String.valueOf(1L), response.getId());
@@ -182,6 +189,8 @@ public class AuthServiceTest {
         assertEquals("test@example.com", response.getEmail());
         assertEquals("jwt-token", response.getToken());
         assertEquals("refresh-token", response.getRefreshToken());
+        verify(loginHistoryService).recordLoginAttempt(any(), eq(ipAddress), eq(userAgent),
+                eq(LoginStatus.SUCCESS), isNull());
     }
 
     @Test
@@ -210,24 +219,27 @@ public class AuthServiceTest {
         when(jwtTokenProvider.generateToken(user)).thenReturn("jwt-token");
         when(refreshTokenService.createRefreshToken(eq("1"))).thenReturn(refreshToken);
 
-        LoginResponse response = authService.login(request);
+        LoginResponse response = authService.login(request, ipAddress, userAgent);
 
         assertEquals("1", response.getId());
         assertEquals("testUser", response.getUsername());
         assertEquals("test@example.com", response.getEmail());
         assertEquals("jwt-token", response.getToken());
         assertEquals("refresh-token", response.getRefreshToken());
+        verify(loginHistoryService).recordLoginAttempt(any(), eq(ipAddress), eq(userAgent),
+                eq(LoginStatus.SUCCESS), isNull());
     }
 
     @Test
     void login_InvalidCredentials_UserNotFound() {
-        LoginRequest request = new LoginRequest();
-        request.setUsernameOrEmail("testUser1");
-        request.setPassword("Test123@");
+        LoginRequest request = LoginRequest.builder()
+                .usernameOrEmail("test@example.com")
+                .password("password")
+                .build();
 
         when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.empty());
 
-        assertThrows(AuthException.InvalidCredentials.class, () -> authService.login(request));
+        assertThrows(AuthException.InvalidCredentials.class, () -> authService.login(request, ipAddress, userAgent));
     }
 
     @Test
@@ -235,26 +247,30 @@ public class AuthServiceTest {
         LoginRequest request = new LoginRequest();
         request.setUsernameOrEmail("testUser");
         request.setPassword("Test123@");
-
+    
         User user = User.builder()
                 .username("testUser")
                 .password("encodedPassword")
                 .email("test@example.com")
                 .build();
-
+    
         when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
                 .thenReturn(Optional.of(user));
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
-
-        assertThrows(AuthException.InvalidCredentials.class, () -> authService.login(request));
+    
+        assertThrows(AuthException.InvalidCredentials.class, 
+                () -> authService.login(request, ipAddress, userAgent));
+        
+        verify(loginHistoryService).recordLoginAttempt(eq(user), eq(ipAddress), eq(userAgent),
+                eq(LoginStatus.INVALID_CREDENTIALS), anyString());
     }
-
+    
     @Test
     void login_AccountSuspended() {
         LoginRequest request = new LoginRequest();
         request.setUsernameOrEmail("suspended@example.com");
         request.setPassword("password");
-
+    
         User user = User.builder()
                 .id("1")
                 .username("suspendedUser")
@@ -262,19 +278,23 @@ public class AuthServiceTest {
                 .password("encodedPassword")
                 .status(AccountStatus.SUSPENDED)
                 .build();
-
+    
         when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
                 .thenReturn(Optional.of(user));
-
-        assertThrows(AuthException.AccountSuspended.class, () -> authService.login(request));
+    
+        assertThrows(AuthException.AccountSuspended.class, 
+                () -> authService.login(request, ipAddress, userAgent));
+        
+        verify(loginHistoryService).recordLoginAttempt(eq(user), eq(ipAddress), eq(userAgent),
+                eq(LoginStatus.SUSPENDED), anyString());
     }
-
+    
     @Test
     void login_AccountDeleted() {
         LoginRequest request = new LoginRequest();
         request.setUsernameOrEmail("deleted@example.com");
         request.setPassword("password");
-
+    
         User user = User.builder()
                 .id("1")
                 .username("deletedUser")
@@ -282,10 +302,74 @@ public class AuthServiceTest {
                 .password("encodedPassword")
                 .status(AccountStatus.DELETED)
                 .build();
-
+    
         when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
                 .thenReturn(Optional.of(user));
+    
+        assertThrows(AuthException.AccountDeleted.class, 
+                () -> authService.login(request, ipAddress, userAgent));
+        
+        verify(loginHistoryService).recordLoginAttempt(eq(user), eq(ipAddress), eq(userAgent),
+                eq(LoginStatus.DELETED), anyString());
+    }
 
-        assertThrows(AuthException.AccountDeleted.class, () -> authService.login(request));
+    @Test
+    void login_WithDefaultIpAndUserAgent() {
+        LoginRequest request = LoginRequest.builder()
+                .usernameOrEmail("testUser")
+                .password("Test123*")
+                .build();
+
+        User user = User.builder()
+                .id("1")
+                .username("testUser")
+                .password("encodedPassword")
+                .email("test@example.com")
+                .build();
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token("refresh-token")
+                .user(user)
+                .build();
+
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
+        when(jwtTokenProvider.generateToken(any())).thenReturn("jwt-token");
+        when(refreshTokenService.createRefreshToken(anyString())).thenReturn(refreshToken);
+
+        // เรียกใช้ method แบบเก่า
+        LoginResponse response = authService.login(request);
+
+        assertNotNull(response);
+        assertEquals("testUser", response.getUsername());
+
+        // ตรวจสอบว่าใช้ค่าเริ่มต้นถูกต้อง
+        verify(loginHistoryService).recordLoginAttempt(any(), eq("0.0.0.0"), eq("Unknown"),
+                eq(LoginStatus.SUCCESS), isNull());
+    }
+
+    @Test
+    void login_UnexpectedError() {
+        LoginRequest request = LoginRequest.builder()
+                .usernameOrEmail("testUser")
+                .password("Test123*")
+                .build();
+
+        User user = User.builder()
+                .id("1")
+                .username("testUser")
+                .password("encodedPassword")
+                .build();
+
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
+        when(refreshTokenService.createRefreshToken(anyString())).thenThrow(new RuntimeException("Database error"));
+
+        Exception exception = assertThrows(RuntimeException.class,
+                () -> authService.login(request, ipAddress, userAgent));
+        assertTrue(exception.getMessage().contains("Login failed"));
+
+        verify(loginHistoryService).recordLoginAttempt(eq(user), eq(ipAddress), eq(userAgent),
+                eq(LoginStatus.UNKNOWN_ERROR), contains("Database error"));
     }
 }
