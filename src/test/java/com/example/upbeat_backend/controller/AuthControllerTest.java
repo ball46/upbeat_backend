@@ -27,7 +27,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -254,12 +255,10 @@ public class AuthControllerTest {
                 .token("jwt-token")
                 .build();
 
-        when(authService.login(any(LoginRequest.class), anyString(), anyString())).thenReturn(response);
+        when(authService.login(any())).thenReturn(response);
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Forwarded-For", "192.168.1.1")
-                        .header("User-Agent", "Mozilla/5.0 (Test)")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("user-id"))
@@ -275,12 +274,10 @@ public class AuthControllerTest {
                 .password("WrongPass123*")
                 .build();
 
-        when(authService.login(any(LoginRequest.class), anyString(), anyString())).thenThrow(new AuthException.InvalidCredentials());
+        when(authService.login(any())).thenThrow(new AuthException.InvalidCredentials());
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Forwarded-For", "192.168.1.1")
-                        .header("User-Agent", "Mozilla/5.0 (Test)")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
     }
@@ -293,8 +290,6 @@ public class AuthControllerTest {
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Forwarded-For", "192.168.1.1")
-                        .header("User-Agent", "Mozilla/5.0 (Test)")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
     }
@@ -313,12 +308,10 @@ public class AuthControllerTest {
                 .token("jwt-token")
                 .build();
 
-        when(authService.login(any(LoginRequest.class), anyString(), anyString())).thenReturn(response);
+        when(authService.login(any())).thenReturn(response);
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Forwarded-For", "192.168.1.1")
-                        .header("User-Agent", "Mozilla/5.0 (Test)")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("test@example.com"));
@@ -339,12 +332,10 @@ public class AuthControllerTest {
                 .password("Test123*")
                 .build();
 
-        when(authService.login(any(LoginRequest.class), anyString(), anyString())).thenThrow(new AuthException.AccountSuspended());
+        when(authService.login(any())).thenThrow(new AuthException.AccountSuspended());
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Forwarded-For", "192.168.1.1")
-                        .header("User-Agent", "Mozilla/5.0 (Test)")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
     }
@@ -356,12 +347,10 @@ public class AuthControllerTest {
                 .password("Test123*")
                 .build();
 
-        when(authService.login(any(LoginRequest.class), anyString(), anyString())).thenThrow(new AuthException.AccountDeleted());
+        when(authService.login(any())).thenThrow(new AuthException.AccountDeleted());
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Forwarded-For", "192.168.1.1")
-                        .header("User-Agent", "Mozilla/5.0 (Test)")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
     }
