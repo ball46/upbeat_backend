@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 import eu.bitwalker.useragentutils.UserAgent;
 import eu.bitwalker.useragentutils.DeviceType;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class LoginHistoryService {
@@ -16,6 +19,14 @@ public class LoginHistoryService {
 
     public void recordLoginAttempt(User user, String ipAddress, String userAgent,
                                LoginStatus status, String failureReason) {
+        if (user == null) {
+            throw new IllegalArgumentException("User cannot be null");
+        }
+
+        if (status == null) {
+            throw new IllegalArgumentException("Login status cannot be null");
+        }
+
         String deviceType = extractDeviceType(userAgent);
         String browser = extractBrowser(userAgent);
         String os = extractOS(userAgent);
@@ -55,5 +66,14 @@ public class LoginHistoryService {
 
         UserAgent userAgent = UserAgent.parseUserAgentString(userAgentString);
         return userAgent.getOperatingSystem().getName();
+    }
+
+    public List<LoginHistory> findByUserId(String userId) {
+        return loginHistoryRepository.findByUserIdOrderByLoginTimeDesc(userId);
+    }
+
+    public int countFailedLoginAttemptsSince(String userId, LocalDateTime since) {
+        return loginHistoryRepository.countByUserIdAndStatusAndLoginTimeAfter(
+            userId, LoginStatus.INVALID_CREDENTIALS, since);
     }
 }
