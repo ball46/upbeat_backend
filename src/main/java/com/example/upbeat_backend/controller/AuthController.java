@@ -11,6 +11,8 @@ import com.example.upbeat_backend.security.UserPrincipal;
 import com.example.upbeat_backend.security.jwt.JwtTokenProvider;
 import com.example.upbeat_backend.service.AuthService;
 import com.example.upbeat_backend.service.RefreshTokenService;
+import com.example.upbeat_backend.util.DataHeader;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -32,13 +34,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest lr) {
-        LoginResponse data = authService.login(lr);
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest lr, HttpServletRequest request) {
+        String ipAddress = DataHeader.getIpAddress(request);
+        String userAgent = DataHeader.getUserAgent(request);
+        LoginResponse data = authService.login(lr, ipAddress, userAgent);
         return ResponseEntity.ok(data);
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<TokenRefreshResponse> refreshToken(@RequestHeader(value = "Refresh-Token") String rt) {
+    public ResponseEntity<TokenRefreshResponse> refreshToken(@RequestHeader(value = "Refresh-Token" ) String rt) {
         RefreshToken refreshToken = refreshTokenService.findByToken(rt);
         refreshTokenService.verifyExpiration(refreshToken);
 

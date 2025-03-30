@@ -9,6 +9,7 @@ import com.example.upbeat_backend.model.RefreshToken;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.Role;
 import com.example.upbeat_backend.model.enums.AccountStatus;
+import com.example.upbeat_backend.model.enums.LoginStatus;
 import com.example.upbeat_backend.repository.RoleRepository;
 import com.example.upbeat_backend.repository.UserRepository;
 import com.example.upbeat_backend.security.jwt.JwtTokenProvider;
@@ -26,6 +27,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final LoginHistoryService loginHistoryService;
 
     @Value("${app.default_role_name}")
     private String defaultRoleName;
@@ -58,20 +60,60 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest lr) {
+        return login(lr, "0.0.0.0", "Unknown");
+    }
+
+    public LoginResponse login(LoginRequest lr, String ipAddress, String userAgent) {
+        try {
+            User user = findAndValidateUser(lr.getUsernameOrEmail(), ipAddress, userAgent);
+
+            validatePassword(user, lr.getPassword(), ipAddress, userAgent);
+
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+            loginHistoryService.recordLoginAttempt(user, ipAddress, userAgent, LoginStatus.SUCCESS, null);
+
+            return buildLoginResponse(user, refreshToken);
+        } catch (Exception e) {
+            switch (e) {
+                case AuthException.InvalidCredentials ignored -> throw e;
+                case AuthException.AccountDeleted ignored -> throw e;
+                case AuthException.AccountSuspended ignored -> throw e;
+                default -> {
+                    handleUnexpectedError(lr.getUsernameOrEmail(), ipAddress, userAgent, e);
+                    throw new RuntimeException("Login failed: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    private User findAndValidateUser(String usernameOrEmail, String ipAddress, String userAgent) {
         User user = userRepository.findByUsernameOrEmail(
-                lr.getUsernameOrEmail(),
-                lr.getUsernameOrEmail()
+                usernameOrEmail, usernameOrEmail
         ).orElseThrow(AuthException.InvalidCredentials::new);
 
-        if (user.getStatus() == AccountStatus.SUSPENDED) throw new AuthException.AccountSuspended();
-        else if (user.getStatus() == AccountStatus.DELETED) throw new AuthException.AccountDeleted();
-
-        if (!passwordEncoder.matches(lr.getPassword(), user.getPassword())) {
-            throw new AuthException.InvalidCredentials();
+        if (user.getStatus() == AccountStatus.SUSPENDED) {
+            loginHistoryService.recordLoginAttempt(user, ipAddress, userAgent,
+                    LoginStatus.SUSPENDED, "This account has been suspended");
+            throw new AuthException.AccountSuspended();
+        } else if (user.getStatus() == AccountStatus.DELETED) {
+            loginHistoryService.recordLoginAttempt(user, ipAddress, userAgent,
+                    LoginStatus.DELETED, "This account has been deleted");
+            throw new AuthException.AccountDeleted();
         }
 
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+        return user;
+    }
 
+    private void validatePassword(User user, String password, String ipAddress, String userAgent) {
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            loginHistoryService.recordLoginAttempt(user, ipAddress, userAgent,
+                    LoginStatus.INVALID_CREDENTIALS, "Username or password is incorrect");
+            throw new AuthException.InvalidCredentials();
+        }
+    }
+
+    private LoginResponse buildLoginResponse(User user, RefreshToken refreshToken) {
         return LoginResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -79,5 +121,16 @@ public class AuthService {
                 .token(jwtTokenProvider.generateToken(user))
                 .refreshToken(refreshToken.getToken())
                 .build();
+    }
+
+    private void handleUnexpectedError(String usernameOrEmail, String ipAddress, String userAgent, Exception e) {
+        try {
+            userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
+                    .ifPresent(user -> loginHistoryService.recordLoginAttempt(user,
+                            ipAddress,
+                            userAgent,
+                            LoginStatus.UNKNOWN_ERROR,
+                            e.getMessage()));
+        } catch (Exception ignored) {}
     }
 }
