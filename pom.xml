@@ -109,6 +109,11 @@
 			<version>17.0.0</version>
 			<scope>compile</scope>
 		</dependency>
+		<dependency>
+			<groupId>eu.bitwalker</groupId>
+			<artifactId>UserAgentUtils</artifactId>
+			<version>1.21</version>
+		</dependency>
 	</dependencies>
 
 	<build>
