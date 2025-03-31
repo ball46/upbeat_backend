@@ -31,7 +31,7 @@ public class LoginHistoryController {
 
     @GetMapping("/user/{userId}/limit")
     @PreAuthorize("hasAuthority('Admin')")
-    public ResponseEntity<Page<LoginHistoryResponse>> getAllLoginHistories(
+    public ResponseEntity<Page<LoginHistoryResponse>> getAllLoginHistoriesForUser(
             @PathVariable String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {

@@ -17,7 +17,6 @@ import eu.bitwalker.useragentutils.DeviceType;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
