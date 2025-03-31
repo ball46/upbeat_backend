@@ -18,6 +18,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,7 +46,12 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<TokenRefreshResponse> refreshToken(@RequestHeader(value = "Refresh-Token" ) String rt) {
+    @Operation(summary = "Refresh access token", security = {
+            @SecurityRequirement(name = "refreshToken")
+    })
+    @Parameter(in = ParameterIn.HEADER, name = "Refresh-Token", required = true,
+            description = "Refresh token for generating new access token")
+    public ResponseEntity<TokenRefreshResponse> refreshToken(@RequestHeader(value = "Refresh-Token") String rt) {
         RefreshToken refreshToken = refreshTokenService.findByToken(rt);
         refreshTokenService.verifyExpiration(refreshToken);
 

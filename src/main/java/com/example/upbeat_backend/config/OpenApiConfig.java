@@ -12,21 +12,28 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfig {
     @Bean
     public OpenAPI usersMicroserviceOpenAPI() {
-        final String securitySchemeName = "bearerAuth";
+        final String bearerSchemeName = "bearerAuth";
+        final String refreshTokenSchemeName = "refreshToken";
 
         return new OpenAPI()
                 .info(new Info()
                         .title("Upbeat API")
                         .description("API documentation for Upbeat backend")
                         .version("1.0"))
-                .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
+                .addSecurityItem(new SecurityRequirement().addList(bearerSchemeName))
                 .components(new Components()
-                        .addSecuritySchemes(securitySchemeName,
+                        .addSecuritySchemes(bearerSchemeName,
                                 new SecurityScheme()
-                                        .name(securitySchemeName)
+                                        .name(bearerSchemeName)
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
+                        )
+                        .addSecuritySchemes(refreshTokenSchemeName,
+                                new SecurityScheme()
+                                        .name("Refresh-Token")
+                                        .type(SecurityScheme.Type.APIKEY)
+                                        .in(SecurityScheme.In.HEADER)
                         )
                 );
     }
