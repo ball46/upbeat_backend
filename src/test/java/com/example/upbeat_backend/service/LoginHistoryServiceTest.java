@@ -1,5 +1,6 @@
 package com.example.upbeat_backend.service;
 
+import com.example.upbeat_backend.dto.response.login_history.LoginHistoryResponse;
 import com.example.upbeat_backend.exception.auth.LoginHistoryException;
 import com.example.upbeat_backend.model.LoginHistory;
 import com.example.upbeat_backend.model.User;
@@ -12,9 +13,11 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,7 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class LoginHistoryTest {
+public class LoginHistoryServiceTest {
 
     @Mock
     private LoginHistoryRepository loginHistoryRepository;
@@ -158,17 +161,41 @@ public class LoginHistoryTest {
     }
 
     @Test
-    void findLoginHistoryByUserId_ReturnsCorrectHistory() {
+    void findLoginHistoryByUserIdPaginated_ReturnsCorrectHistory() {
         String userId = "1";
-        List<LoginHistory> histories = new ArrayList<>();
+        User user = User.builder().id(userId).username("testUser").build();
+        int page = 0;
+        int size = 10;
 
-        when(loginHistoryRepository.findByUserIdOrderByLoginTimeDesc(userId))
-            .thenReturn(histories);
+        LocalDateTime loginTime = LocalDateTime.of(2023, 5, 15, 14, 30);
+        List<LoginHistory> histories = List.of(
+                LoginHistory.builder()
+                        .id("history1")
+                        .user(user)
+                        .loginTime(loginTime)
+                        .ipAddress("192.168.1.1")
+                        .userAgent("Mozilla/5.0")
+                        .deviceType("Computer")
+                        .browser("Chrome")
+                        .os("Windows")
+                        .status(LoginStatus.SUCCESS)
+                        .build()
+        );
 
-        List<LoginHistory> result = loginHistoryService.findByUserId(userId);
+        Page<LoginHistory> historyPage = new PageImpl<>(histories);
 
-        assertSame(histories, result);
-        verify(loginHistoryRepository).findByUserIdOrderByLoginTimeDesc(userId);
+        when(loginHistoryRepository.findByUserIdOrderByLoginTimeDesc(eq(userId), any(Pageable.class)))
+                .thenReturn(historyPage);
+
+        Page<LoginHistoryResponse> result = loginHistoryService.findByUserIdPaginated(userId, page, size);
+
+        assertEquals(1, result.getTotalElements());
+        LoginHistoryResponse response = result.getContent().getFirst();
+        assertEquals("15/05/2023", response.getDate());
+        assertEquals("14:30", response.getTime());
+        assertEquals("192.168.1.1", response.getIpAddress());
+
+        verify(loginHistoryRepository).findByUserIdOrderByLoginTimeDesc(eq(userId), any(Pageable.class));
     }
 
     @Test
