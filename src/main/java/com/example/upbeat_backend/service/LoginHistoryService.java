@@ -1,5 +1,6 @@
 package com.example.upbeat_backend.service;
 
+import com.example.upbeat_backend.exception.auth.LoginHistoryException;
 import com.example.upbeat_backend.model.LoginHistory;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.enums.LoginStatus;
@@ -19,13 +20,12 @@ public class LoginHistoryService {
 
     public void recordLoginAttempt(User user, String ipAddress, String userAgent,
                                LoginStatus status, String failureReason) {
-        if (user == null) {
-            throw new IllegalArgumentException("User cannot be null");
-        }
+        if (user == null) throw new LoginHistoryException.NullUserException();
 
-        if (status == null) {
-            throw new IllegalArgumentException("Login status cannot be null");
-        }
+        if (status == null) throw new LoginHistoryException.NullStatusException();
+
+        ipAddress = (ipAddress != null) ? ipAddress : "0.0.0.0";
+        userAgent = (userAgent != null) ? userAgent : "Unknown";
 
         String deviceType = extractDeviceType(userAgent);
         String browser = extractBrowser(userAgent);
