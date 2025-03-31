@@ -1,16 +1,22 @@
 package com.example.upbeat_backend.service;
 
+import com.example.upbeat_backend.dto.response.login_history.LoginHistoryResponse;
 import com.example.upbeat_backend.exception.auth.LoginHistoryException;
 import com.example.upbeat_backend.model.LoginHistory;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.enums.LoginStatus;
 import com.example.upbeat_backend.repository.LoginHistoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import eu.bitwalker.useragentutils.UserAgent;
 import eu.bitwalker.useragentutils.DeviceType;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -68,8 +74,27 @@ public class LoginHistoryService {
         return userAgent.getOperatingSystem().getName();
     }
 
-    public List<LoginHistory> findByUserId(String userId) {
-        return loginHistoryRepository.findByUserIdOrderByLoginTimeDesc(userId);
+    public Page<LoginHistoryResponse> findByUserIdPaginated(String userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LoginHistory> historyPage = loginHistoryRepository.findByUserIdOrderByLoginTimeDesc(userId, pageable);
+
+        return historyPage.map(this::mapToResponse);
+    }
+
+    private LoginHistoryResponse mapToResponse(@NotNull LoginHistory history) {
+        String dateFormatted = history.getLoginTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String timeFormatted = history.getLoginTime().format(DateTimeFormatter.ofPattern("HH:mm"));
+
+        return LoginHistoryResponse.builder()
+                .ipAddress(history.getIpAddress())
+                .deviceType(history.getDeviceType())
+                .browser(history.getBrowser())
+                .os(history.getOs())
+                .status(history.getStatus())
+                .failureReason(history.getFailureReason())
+                .date(dateFormatted)
+                .time(timeFormatted)
+                .build();
     }
 
     public int countFailedLoginAttemptsSince(String userId, LocalDateTime since) {

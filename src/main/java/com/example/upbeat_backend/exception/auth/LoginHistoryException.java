@@ -19,4 +19,12 @@ public class LoginHistoryException {
                     "NULL_STATUS_ERROR");
         }
     }
+
+    public static class InvalidDateFormatException extends BaseException {
+        public InvalidDateFormatException() {
+            super("Invalid date format: Expected format: yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_DATE_FORMAT_ERROR");
+        }
+    }
 }
