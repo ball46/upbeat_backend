@@ -5,6 +5,7 @@ import com.example.upbeat_backend.service.RoleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +18,7 @@ public class RoleController {
     private final RoleService roleService;
 
     @PostMapping("/add")
+    @PreAuthorize("hasPermission(null, 'role_create')")
     public ResponseEntity<String> addRole(@Valid @RequestBody AddRoleRequest ar) {
         String data = roleService.addRole(ar);
         return ResponseEntity.ok(data);
