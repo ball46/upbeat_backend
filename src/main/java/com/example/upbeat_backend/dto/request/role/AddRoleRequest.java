@@ -1,5 +1,6 @@
 package com.example.upbeat_backend.dto.request.role;
 
+import com.example.upbeat_backend.validation.annotation.permission.ValidPermissions;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
@@ -18,5 +19,6 @@ public class AddRoleRequest {
     private String name;
 
     @NotEmpty(message = "Permissions are required")
+    @ValidPermissions
     private Map<String, Boolean> permissions;
 }
