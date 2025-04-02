@@ -30,7 +30,7 @@ public class LoginHistoryController {
     }
 
     @GetMapping("/user/{userId}/limit")
-    @PreAuthorize("hasAuthority('Admin')")
+    @PreAuthorize("hasPermission(null, 'user_view')")
     public ResponseEntity<Page<LoginHistoryResponse>> getAllLoginHistoriesForUser(
             @PathVariable String userId,
             @RequestParam(defaultValue = "0") int page,
@@ -51,7 +51,7 @@ public class LoginHistoryController {
     }
 
     @GetMapping("/user/{userId}/failed-login-attempts")
-    @PreAuthorize("hasAuthority('Admin')")
+    @PreAuthorize("hasPermission(null, 'user_view')")
     public ResponseEntity<Integer> getFailedLoginAttemptsForUser(
             @PathVariable String userId,
             @RequestParam(name = "since") String dateString) {
