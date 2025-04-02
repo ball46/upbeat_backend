@@ -18,7 +18,7 @@ public class RoleController {
     private final RoleService roleService;
 
     @PostMapping("/add")
-    @PreAuthorize("hasPermission(null, 'role_create')")
+    @PreAuthorize("hasPermission(null, T(com.example.upbeat_backend.security.permission.PermissionConstants).ROLE_CREATE)")
     public ResponseEntity<String> addRole(@Valid @RequestBody AddRoleRequest ar) {
         String data = roleService.addRole(ar);
         return ResponseEntity.ok(data);

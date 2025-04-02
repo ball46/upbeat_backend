@@ -30,7 +30,7 @@ public class LoginHistoryController {
     }
 
     @GetMapping("/user/{userId}/limit")
-    @PreAuthorize("hasPermission(null, 'user_view')")
+    @PreAuthorize("hasPermission(null, T(com.example.upbeat_backend.security.permission.PermissionConstants).USER_VIEW)")
     public ResponseEntity<Page<LoginHistoryResponse>> getAllLoginHistoriesForUser(
             @PathVariable String userId,
             @RequestParam(defaultValue = "0") int page,
@@ -51,7 +51,7 @@ public class LoginHistoryController {
     }
 
     @GetMapping("/user/{userId}/failed-login-attempts")
-    @PreAuthorize("hasPermission(null, 'user_view')")
+    @PreAuthorize("hasPermission(null, T(com.example.upbeat_backend.security.permission.PermissionConstants).USER_VIEW)")
     public ResponseEntity<Integer> getFailedLoginAttemptsForUser(
             @PathVariable String userId,
             @RequestParam(name = "since") String dateString) {
