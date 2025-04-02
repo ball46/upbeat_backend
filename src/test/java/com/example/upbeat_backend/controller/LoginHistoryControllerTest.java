@@ -5,6 +5,7 @@ import com.example.upbeat_backend.exception.auth.LoginHistoryException;
 import com.example.upbeat_backend.model.enums.LoginStatus;
 import com.example.upbeat_backend.security.CurrentUser;
 import com.example.upbeat_backend.security.UserPrincipal;
+import com.example.upbeat_backend.security.permission.CustomPermissionEvaluator;
 import com.example.upbeat_backend.service.LoginHistoryService;
 import com.example.upbeat_backend.util.DateFormat;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +16,8 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +26,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.PermissionEvaluator;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -58,6 +64,21 @@ public class LoginHistoryControllerTest {
 
     @InjectMocks
     private LoginHistoryController loginHistoryController;
+
+    @TestConfiguration
+    static class TestSecurityConfig {
+        @Bean
+        public static PermissionEvaluator permissionEvaluator() {
+            return new CustomPermissionEvaluator();
+        }
+
+        @Bean
+        public static MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+            DefaultMethodSecurityExpressionHandler expressionHandler = new DefaultMethodSecurityExpressionHandler();
+            expressionHandler.setPermissionEvaluator(permissionEvaluator());
+            return expressionHandler;
+        }
+    }
 
     @RestControllerAdvice
     public static class TestControllerAdvice {
@@ -157,10 +178,10 @@ public class LoginHistoryControllerTest {
     }
 
     @Test
-    void getAllLoginHistoriesForUser_Admin_Success() throws Exception {
-        String adminId = "admin123";
+    void getAllLoginHistoriesForUser_WithUserViewPermission_Success() throws Exception {
+        String userId = "admin123";
         String targetUserId = "user456";
-        UserPrincipal adminPrincipal = UserPrincipal.builder().id(adminId).username("admin").build();
+        UserPrincipal userPrincipal = UserPrincipal.builder().id(userId).username("admin").build();
 
         LoginHistoryResponse historyResponse = LoginHistoryResponse.builder()
                 .date("31/03/2023")
@@ -176,17 +197,12 @@ public class LoginHistoryControllerTest {
                 .thenReturn(page);
 
         Authentication auth = new UsernamePasswordAuthenticationToken(
-                adminPrincipal, null, List.of(new SimpleGrantedAuthority("Admin")));
+                userPrincipal, null, List.of(new SimpleGrantedAuthority("user_view")));
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         mockMvc.perform(get("/login-history/user/{userId}/limit", targetUserId)
                         .param("page", "0")
-                        .param("size", "10")
-                        .with(request -> {
-                            request.setUserPrincipal(auth);
-                            SecurityContextHolder.getContext().setAuthentication((Authentication) request.getUserPrincipal());
-                            return request;
-                        }))
+                        .param("size", "10"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -194,7 +210,7 @@ public class LoginHistoryControllerTest {
     }
 
     @Test
-    void getAllLoginHistoriesForUser_NonAdmin_Forbidden() throws Exception {
+    void getAllLoginHistoriesForUser_WithoutPermission_Forbidden() throws Exception {
         String normalUserId = "user123";
         String targetUserId = "user456";
         UserPrincipal userPrincipal = UserPrincipal.builder().id(normalUserId).username("user").build();
@@ -203,16 +219,12 @@ public class LoginHistoryControllerTest {
                 userPrincipal, null, Collections.emptyList());
         SecurityContextHolder.getContext().setAuthentication(auth);
 
-        when(loginHistoryService.findByUserIdPaginated(eq(targetUserId), eq(0), eq(10)))
-                .thenThrow(new AccessDeniedException("Access Denied"));
+        when(loginHistoryService.findByUserIdPaginated(anyString(), anyInt(), anyInt()))
+                .thenThrow(new AccessDeniedException("Access denied"));
 
         mockMvc.perform(get("/login-history/user/{userId}/limit", targetUserId)
                         .param("page", "0")
-                        .param("size", "10")
-                        .with(request -> {
-                            request.setUserPrincipal(auth);
-                            return request;
-                        }))
+                        .param("size", "10"))
                 .andExpect(status().isForbidden());
     }
 
@@ -242,12 +254,12 @@ public class LoginHistoryControllerTest {
     }
 
     @Test
-    void getFailedLoginAttemptsForUser_Admin_Success() throws Exception {
-        String adminId = "admin123";
+    void getFailedLoginAttemptsForUser_WithUserViewPermission_Success() throws Exception {
+        String userId = "admin123";
         String targetUserId = "user456";
         String dateString = "2023-05-01";
         LocalDateTime sinceDate = LocalDateTime.of(2023, 5, 1, 0, 0);
-        UserPrincipal adminPrincipal = UserPrincipal.builder().id(adminId).username("admin").build();
+        UserPrincipal userPrincipal = UserPrincipal.builder().id(userId).username("admin").build();
 
         try (MockedStatic<DateFormat> mockedStatic = Mockito.mockStatic(DateFormat.class)) {
             mockedStatic.when(() -> DateFormat.parseDateString(dateString))
@@ -257,7 +269,7 @@ public class LoginHistoryControllerTest {
                     .thenReturn(3);
 
             Authentication auth = new UsernamePasswordAuthenticationToken(
-                    adminPrincipal, null, List.of(new SimpleGrantedAuthority("Admin")));
+                    userPrincipal, null, List.of(new SimpleGrantedAuthority("user_view")));
             SecurityContextHolder.getContext().setAuthentication(auth);
 
             mockMvc.perform(get("/login-history/user/{userId}/failed-login-attempts", targetUserId)
@@ -268,30 +280,27 @@ public class LoginHistoryControllerTest {
     }
 
     @Test
-    void getFailedLoginAttemptsForUser_NonAdmin_Forbidden() throws Exception {
+    void getFailedLoginAttemptsForUser_WithoutPermission_Forbidden() throws Exception {
         String normalUserId = "user123";
         String targetUserId = "user456";
         String dateString = "2023-05-01";
-        LocalDateTime sinceDate = LocalDateTime.of(2023, 5, 1, 0, 0);
         UserPrincipal userPrincipal = UserPrincipal.builder().id(normalUserId).username("user").build();
+
+        LocalDateTime sinceDate = LocalDateTime.of(2023, 5, 1, 0, 0);
 
         try (MockedStatic<DateFormat> mockedStatic = Mockito.mockStatic(DateFormat.class)) {
             mockedStatic.when(() -> DateFormat.parseDateString(dateString))
                     .thenReturn(sinceDate);
 
-            when(loginHistoryService.countFailedLoginAttemptsSince(eq(targetUserId), eq(sinceDate)))
-                    .thenThrow(new AccessDeniedException("Access Denied"));
+            when(loginHistoryService.countFailedLoginAttemptsSince(anyString(), any(LocalDateTime.class)))
+                    .thenThrow(new AccessDeniedException("Access denied"));
 
             Authentication auth = new UsernamePasswordAuthenticationToken(
                     userPrincipal, null, Collections.emptyList());
             SecurityContextHolder.getContext().setAuthentication(auth);
 
             mockMvc.perform(get("/login-history/user/{userId}/failed-login-attempts", targetUserId)
-                            .param("since", dateString)
-                            .with(request -> {
-                                request.setUserPrincipal(auth);
-                                return request;
-                            }))
+                            .param("since", dateString))
                     .andExpect(status().isForbidden());
         }
     }
