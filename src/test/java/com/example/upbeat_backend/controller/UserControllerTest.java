@@ -145,7 +145,6 @@ public class UserControllerTest {
 
     @Test
     void changePassword_InvalidRequest_SamePasswords() throws Exception {
-        // Arrange
         String userId = "testUserId";
         UserPrincipal userPrincipal = UserPrincipal.builder()
                 .id(userId)
