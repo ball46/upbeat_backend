@@ -30,13 +30,18 @@ src/
 │   │       │   └── request/     # Request DTOs
 │   │       │   └── response/    # Response DTOs
 │   │       ├── exception/       # Custom exceptions
+│   │       │   ├── base/        # Base exception classes
+│   │       │   ├── handler/     # Global exception handling
+│   │       │   └──response/     # Exception response handling
 │   │       ├── model/           # Data models
 │   │       │   └── enums/       # Enumerations
 │   │       ├── repository/      # Data access layer
 │   │       ├── security/        # Security classes (UserPrincipal)
 │   │       │   └── jwt/         # JWT utilities
+│   │       │   └── permission/  # Permission management
 │   │       │   └── service/     # Security services
 │   │       ├── service/         # Business logic
+│   │       ├── util/            # Utility classes
 │   │       ├── validation/      # Custom validators
 │   │       │   ├── annotation/  # Custom validation annotations
 │   │       │   └── validator/   # Custom validator implementations
