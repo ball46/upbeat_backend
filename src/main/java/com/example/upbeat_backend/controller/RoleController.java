@@ -55,10 +55,10 @@ public class RoleController {
         return ResponseEntity.ok(data);
     }
 
-    @GetMapping("/get-detail")
+    @GetMapping("/{roleId}/get-detail")
     @PreAuthorize("hasPermission(null, T(com.example.upbeat_backend.security.permission.PermissionConstants).ROLE_VIEW)")
     public ResponseEntity<GetRoleDetailResponse> getRoleDetail(
-            @RequestParam String roleId,
+            @PathVariable String roleId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         GetRoleDetailResponse data = roleService.getRoleDetail(roleId, page, size);

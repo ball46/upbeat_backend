@@ -3,6 +3,8 @@ package com.example.upbeat_backend.service;
 import com.example.upbeat_backend.dto.request.role.AddRoleRequest;
 import com.example.upbeat_backend.exception.role.RoleException;
 import com.example.upbeat_backend.model.Role;
+import com.example.upbeat_backend.model.User;
+import com.example.upbeat_backend.model.enums.ActionType;
 import com.example.upbeat_backend.repository.RoleRepository;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
@@ -25,6 +27,12 @@ public class RoleServiceTest {
     @Mock
     private RoleRepository roleRepository;
 
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private RoleAuditLogService roleAuditLogService;
+
     @InjectMocks
     private RoleService roleService;
 
@@ -33,7 +41,7 @@ public class RoleServiceTest {
 
     @Test
     void addRole_Success() {
-        // Arrange
+        String roleId = "role-123";
         String roleName = "ADMIN";
         Map<String, Boolean> permissions = getStringBooleanMap();
 
@@ -41,8 +49,21 @@ public class RoleServiceTest {
                 .name(roleName)
                 .permissions(permissions)
                 .build();
+
+        User mockUser = User.builder()
+                .id("user-123")
+                .username("testuser")
+                .build();
         
         when(roleRepository.existsByName(roleName)).thenReturn(false);
+        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> {
+            Role savedRole = invocation.getArgument(0);
+            savedRole.setId(roleId); // Set ID to role being saved
+            return savedRole;
+        });
+        when(userService.getCurrentUser()).thenReturn(mockUser);
+        doNothing().when(roleAuditLogService).saveRoleAuditLog(any(), anyString(), any());
+
 
         String result = roleService.addRole(request);
 
@@ -51,6 +72,9 @@ public class RoleServiceTest {
         Role savedRole = roleCaptor.getValue();
         assertEquals(roleName, savedRole.getName());
         assertEquals(permissions, savedRole.getPermissions());
+
+        verify(userService).getCurrentUser();
+        verify(roleAuditLogService).saveRoleAuditLog(eq(ActionType.CREATE), eq(roleId), eq(mockUser));
     }
 
     private static @NotNull Map<String, Boolean> getStringBooleanMap() {

@@ -8,8 +8,11 @@ import com.example.upbeat_backend.model.enums.ActionType;
 import com.example.upbeat_backend.repository.RoleAuditLogRepository;
 import com.example.upbeat_backend.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -34,24 +37,26 @@ public class RoleAuditLogService {
         }
     }
 
-    public Page<RoleAuditLog> getAuditLogsByRoleId(String roleId, Pageable pageable) {
-        return roleAuditLogRepository.findByRoleId(roleId, pageable);
+    public Page<RoleAuditLogResponse> getAuditLogsByRoleId(String roleId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        Page<RoleAuditLog> auditLogsPage = roleAuditLogRepository.findByRoleId(roleId, pageable);
+        return auditLogsPage.map(this::mapToResponse);
     }
 
-    public Page<RoleAuditLog> getAuditLogsByUserId(String userId, Pageable pageable) {
-        return roleAuditLogRepository.findByUserId(userId, pageable);
+    public Page<RoleAuditLogResponse> getAuditLogsByUserId(String userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        Page<RoleAuditLog> auditLogsPage = roleAuditLogRepository.findByUserId(userId, pageable);
+        return auditLogsPage.map(this::mapToResponse);
     }
 
-    public List<RoleAuditLogResponse> transformAuditLogs(Page<RoleAuditLog> auditLogs) {
-        return auditLogs.stream()
-                .map(auditLog -> RoleAuditLogResponse.builder()
-                        .actionType(auditLog.getActionType())
-                        .roleId(auditLog.getRole().getId())
-                        .roleName(auditLog.getRole().getName())
-                        .userId(auditLog.getUser().getId())
-                        .userName(auditLog.getUser().getUsername())
-                        .timestamp(auditLog.getTimestamp().toString())
-                        .build())
-                .toList();
+    private RoleAuditLogResponse mapToResponse(@NotNull RoleAuditLog auditLog) {
+        return RoleAuditLogResponse.builder()
+                .actionType(auditLog.getActionType())
+                .roleId(auditLog.getRole().getId())
+                .roleName(auditLog.getRole().getName())
+                .userId(auditLog.getUser().getId())
+                .userName(auditLog.getUser().getUsername())
+                .timestamp(auditLog.getTimestamp().toString())
+                .build();
     }
 }

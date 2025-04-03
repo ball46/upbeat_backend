@@ -8,7 +8,6 @@ import com.example.upbeat_backend.dto.response.role.GetRoleDetailResponse;
 import com.example.upbeat_backend.dto.response.role.RoleAuditLogResponse;
 import com.example.upbeat_backend.exception.role.RoleException;
 import com.example.upbeat_backend.model.Role;
-import com.example.upbeat_backend.model.RoleAuditLog;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.enums.ActionType;
 import com.example.upbeat_backend.repository.RoleRepository;
@@ -18,9 +17,6 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -130,9 +126,7 @@ public class RoleService {
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new RoleException.RoleNotFound(roleId));
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
-        Page<RoleAuditLog> auditLogs = roleAuditLogService.getAuditLogsByRoleId(roleId, pageable);
-        List<RoleAuditLogResponse> auditLogList = roleAuditLogService.transformAuditLogs(auditLogs);
+        Page<RoleAuditLogResponse> auditLogs = roleAuditLogService.getAuditLogsByRoleId(roleId, page, size);
 
         return GetRoleDetailResponse.builder()
                 .id(role.getId())
@@ -140,7 +134,7 @@ public class RoleService {
                 .permissions(role.getPermissions())
                 .createdAt(String.valueOf(role.getCreatedAt()))
                 .updatedAt(String.valueOf(role.getUpdatedAt()))
-                .auditLogs(auditLogList)
+                .auditLogs(auditLogs.getContent())
                 .currentPage(auditLogs.getNumber())
                 .totalPages(auditLogs.getTotalPages())
                 .totalElements((int) auditLogs.getTotalElements())
