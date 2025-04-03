@@ -31,5 +31,28 @@ public class RoleException extends Throwable {
         }
     }
 
+    public static class DeletionFailed extends BaseException {
+        public DeletionFailed(String name) {
+            super("Failed to delete role '" + name + "'", HttpStatus.INTERNAL_SERVER_ERROR, "ROLE_DELETION_FAILED");
+        }
+    }
+
+    public static class DeletionConflict extends BaseException {
+        public DeletionConflict(String message) {
+            super(message, HttpStatus.CONFLICT, "ROLE_DELETION_CONFLICT");
+        }
+    }
+
+    public static class ForbiddenOperation extends BaseException {
+        public ForbiddenOperation(String message) {
+            super(message, HttpStatus.FORBIDDEN, "ROLE_OPERATION_FORBIDDEN");
+        }
+    }
+
+    public static class UpdateFailed extends BaseException {
+        public UpdateFailed(String message) {
+            super(message, HttpStatus.INTERNAL_SERVER_ERROR, "ROLE_UPDATE_FAILED");
+        }
+    }
 
 }
