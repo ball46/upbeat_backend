@@ -5,14 +5,22 @@ import com.example.upbeat_backend.dto.request.role.UpdateRoleNameRequest;
 import com.example.upbeat_backend.dto.request.role.UpdateRolePermissionRequest;
 import com.example.upbeat_backend.dto.response.role.GetListOfRoleResponse;
 import com.example.upbeat_backend.dto.response.role.GetRoleDetailResponse;
+import com.example.upbeat_backend.dto.response.role.RoleAuditLogResponse;
 import com.example.upbeat_backend.exception.role.RoleException;
 import com.example.upbeat_backend.model.Role;
+import com.example.upbeat_backend.model.RoleAuditLog;
+import com.example.upbeat_backend.model.User;
+import com.example.upbeat_backend.model.enums.ActionType;
 import com.example.upbeat_backend.repository.RoleRepository;
 import com.example.upbeat_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,6 +30,8 @@ import java.util.List;
 public class RoleService {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
+    private final RoleAuditLogService roleAuditLogService;
+    private final UserService userService;
 
     @Value("${app.default_role_name}")
     private String defaultRoleName;
@@ -35,7 +45,10 @@ public class RoleService {
                     .name(ar.getName())
                     .permissions(ar.getPermissions())
                     .build();
+
             roleRepository.save(role);
+            User user = userService.getCurrentUser();
+            roleAuditLogService.saveRoleAuditLog(ActionType.CREATE, role.getId(), user);
             return "Role created successfully.";
         } catch (Exception e) {
             throw new RoleException.CreationFailed("Failed to create role: " + e.getMessage());
@@ -56,6 +69,8 @@ public class RoleService {
 
         try {
             roleRepository.delete(role);
+            User user = userService.getCurrentUser();
+            roleAuditLogService.saveRoleAuditLog(ActionType.DELETE, roleId, user);
             return "Role deleted successfully.";
         } catch (Exception e) {
             throw new RoleException.DeletionFailed("Failed to delete role: " + e.getMessage());
@@ -76,6 +91,8 @@ public class RoleService {
         try {
             role.setName(un.getName());
             roleRepository.save(role);
+            User user = userService.getCurrentUser();
+            roleAuditLogService.saveRoleAuditLog(ActionType.UPDATE_NAME, role.getId(), user);
             return "Role name updated successfully.";
         } catch (DataIntegrityViolationException e) {
             throw new RoleException.UpdateFailed("Failed to update role name: " + e.getMessage());
@@ -92,6 +109,8 @@ public class RoleService {
         try {
             role.setPermissions(up.getPermissions());
             roleRepository.save(role);
+            User user = userService.getCurrentUser();
+            roleAuditLogService.saveRoleAuditLog(ActionType.UPDATE_PERMISSIONS, role.getId(), user);
             return "Role permissions updated successfully.";
         } catch (DataIntegrityViolationException e) {
             throw new RoleException.UpdateFailed("Failed to update role permissions: " + e.getMessage());
@@ -107,9 +126,13 @@ public class RoleService {
                 .toList();
     }
 
-    public GetRoleDetailResponse getRoleDetail(String roleId) {
+    public GetRoleDetailResponse getRoleDetail(String roleId, int page, int size) {
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new RoleException.RoleNotFound(roleId));
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        Page<RoleAuditLog> auditLogs = roleAuditLogService.getAuditLogsByRoleId(roleId, pageable);
+        List<RoleAuditLogResponse> auditLogList = roleAuditLogService.transformAuditLogs(auditLogs);
 
         return GetRoleDetailResponse.builder()
                 .id(role.getId())
@@ -117,6 +140,10 @@ public class RoleService {
                 .permissions(role.getPermissions())
                 .createdAt(String.valueOf(role.getCreatedAt()))
                 .updatedAt(String.valueOf(role.getUpdatedAt()))
+                .auditLogs(auditLogList)
+                .currentPage(auditLogs.getNumber())
+                .totalPages(auditLogs.getTotalPages())
+                .totalElements((int) auditLogs.getTotalElements())
                 .build();
     }
 }

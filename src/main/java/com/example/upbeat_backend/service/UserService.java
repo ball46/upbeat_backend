@@ -7,6 +7,7 @@ import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -28,5 +29,11 @@ public class UserService {
         userRepository.save(user);
 
         return "Password changed successfully";
+    }
+
+    public User getCurrentUser(){
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsernameOrEmail(username, username)
+                .orElseThrow(() -> new UserException.NotFound(username));
     }
 }

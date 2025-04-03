@@ -27,7 +27,7 @@ public class RoleController {
         return ResponseEntity.ok(data);
     }
 
-    @PostMapping("/delete")
+    @DeleteMapping("/delete")
     @PreAuthorize("hasPermission(null, T(com.example.upbeat_backend.security.permission.PermissionConstants).ROLE_DELETE)")
     public ResponseEntity<String> deleteRole(@RequestParam String roleId) {
         String data = roleService.deleteRole(roleId);
@@ -57,8 +57,11 @@ public class RoleController {
 
     @GetMapping("/get-detail")
     @PreAuthorize("hasPermission(null, T(com.example.upbeat_backend.security.permission.PermissionConstants).ROLE_VIEW)")
-    public ResponseEntity<GetRoleDetailResponse> getRoleDetail(@RequestParam String roleId) {
-        GetRoleDetailResponse data = roleService.getRoleDetail(roleId);
+    public ResponseEntity<GetRoleDetailResponse> getRoleDetail(
+            @RequestParam String roleId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        GetRoleDetailResponse data = roleService.getRoleDetail(roleId, page, size);
         return ResponseEntity.ok(data);
     }
 }
