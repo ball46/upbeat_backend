@@ -1,6 +1,5 @@
 package com.example.upbeat_backend.dto.response.role;
 
-import com.example.upbeat_backend.model.RoleAuditLog;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
