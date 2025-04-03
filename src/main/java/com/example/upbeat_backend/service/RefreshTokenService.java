@@ -6,6 +6,7 @@ import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.repository.RefreshTokenRepository;
 import com.example.upbeat_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -44,7 +45,7 @@ public class RefreshTokenService {
         return refreshTokenRepository.save(refreshToken);
     }
 
-    public void verifyExpiration(RefreshToken token) {
+    public void verifyExpiration(@NotNull RefreshToken token) {
         if (token.getExpiryDate().compareTo(Instant.now()) < 0) {
             refreshTokenRepository.delete(token);
             throw new TokenRefreshException.TokenExpired();

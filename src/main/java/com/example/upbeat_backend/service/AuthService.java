@@ -14,6 +14,7 @@ import com.example.upbeat_backend.repository.RoleRepository;
 import com.example.upbeat_backend.repository.UserRepository;
 import com.example.upbeat_backend.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -87,7 +88,7 @@ public class AuthService {
         }
     }
 
-    private User findAndValidateUser(String usernameOrEmail, String ipAddress, String userAgent) {
+    private @NotNull User findAndValidateUser(String usernameOrEmail, String ipAddress, String userAgent) {
         User user = userRepository.findByUsernameOrEmail(
                 usernameOrEmail, usernameOrEmail
         ).orElseThrow(AuthException.InvalidCredentials::new);
@@ -105,7 +106,7 @@ public class AuthService {
         return user;
     }
 
-    private void validatePassword(User user, String password, String ipAddress, String userAgent) {
+    private void validatePassword(@NotNull User user, String password, String ipAddress, String userAgent) {
         if (!passwordEncoder.matches(password, user.getPassword())) {
             loginHistoryService.recordLoginAttempt(user, ipAddress, userAgent,
                     LoginStatus.INVALID_CREDENTIALS, "Username or password is incorrect");
@@ -113,7 +114,7 @@ public class AuthService {
         }
     }
 
-    private LoginResponse buildLoginResponse(User user, RefreshToken refreshToken) {
+    private LoginResponse buildLoginResponse(@NotNull User user, @NotNull RefreshToken refreshToken) {
         return LoginResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())

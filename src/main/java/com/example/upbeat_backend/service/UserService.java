@@ -6,6 +6,7 @@ import com.example.upbeat_backend.exception.user.UserException;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +16,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public String changePassword(String userId, ChangePassword cp) {
+    public String changePassword(String userId, @NotNull ChangePassword cp) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserException.NotFound(userId));
 
