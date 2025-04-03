@@ -1,6 +1,7 @@
 package com.example.upbeat_backend.service;
 
 import com.example.upbeat_backend.dto.request.role.AddRoleRequest;
+import com.example.upbeat_backend.exception.role.RoleException;
 import com.example.upbeat_backend.model.Role;
 import com.example.upbeat_backend.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,9 @@ public class RoleService {
     private final RoleRepository roleRepository;
 
     public String addRole(AddRoleRequest ar) {
+        if (roleRepository.existsByName(ar.getName())) {
+            throw new RoleException.RoleAlreadyExists(ar.getName());
+        }
         try {
             Role role = Role.builder()
                     .name(ar.getName())
@@ -20,7 +24,7 @@ public class RoleService {
             roleRepository.save(role);
             return "Role created successfully.";
         } catch (Exception e) {
-            throw new RuntimeException("Failed to create role: " + e.getMessage());
+            throw new RoleException.CreationFailed("Failed to create role: " + e.getMessage());
         }
     }
 }

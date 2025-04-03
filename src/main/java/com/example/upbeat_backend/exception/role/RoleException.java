@@ -19,5 +19,17 @@ public class RoleException extends Throwable {
         }
     }
 
+    public static class RoleAlreadyExists extends BaseException {
+        public RoleAlreadyExists(String name) {
+            super("Role with name '" + name + "' already exists", HttpStatus.CONFLICT, "ROLE_ALREADY_EXISTS");
+        }
+    }
+
+    public static class CreationFailed extends BaseException {
+        public CreationFailed(String name) {
+            super("Failed to create role '" + name + "'", HttpStatus.INTERNAL_SERVER_ERROR, "ROLE_CREATION_FAILED");
+        }
+    }
+
 
 }
