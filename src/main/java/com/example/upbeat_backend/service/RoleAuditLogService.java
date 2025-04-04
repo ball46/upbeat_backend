@@ -2,11 +2,14 @@ package com.example.upbeat_backend.service;
 
 import com.example.upbeat_backend.dto.response.role.RoleAuditLogResponse;
 import com.example.upbeat_backend.exception.role.RoleAuditLogException;
+import com.example.upbeat_backend.exception.role.RoleException;
+import com.example.upbeat_backend.exception.user.UserException;
 import com.example.upbeat_backend.model.RoleAuditLog;
 import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.model.enums.ActionType;
 import com.example.upbeat_backend.repository.RoleAuditLogRepository;
 import com.example.upbeat_backend.repository.RoleRepository;
+import com.example.upbeat_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.domain.Page;
@@ -20,11 +23,24 @@ import org.springframework.stereotype.Service;
 public class RoleAuditLogService {
     private final RoleAuditLogRepository roleAuditLogRepository;
     private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
 
-    public void saveRoleAuditLog(ActionType type, String roeId, User user) {
+    public void saveRoleAuditLog(ActionType type, String roleId, User user) {
+        if (type == null) {
+            throw new RoleAuditLogException.LoggingFailed("ActionType cannot be null");
+        }
+
+        if (roleId == null || roleId.trim().isEmpty()) {
+            throw new RoleAuditLogException.LoggingFailed("Role ID cannot be null or empty");
+        }
+
+        if (user == null) {
+            throw new RoleAuditLogException.LoggingFailed("User cannot be null");
+        }
+
         RoleAuditLog ra = RoleAuditLog.builder()
                 .actionType(type)
-                .role(roleRepository.findById(roeId).orElse(null))
+                .role(roleRepository.findById(roleId).orElse(null))
                 .user(user)
                 .build();
 
@@ -36,12 +52,20 @@ public class RoleAuditLogService {
     }
 
     public Page<RoleAuditLogResponse> getAuditLogsByRoleId(String roleId, int page, int size) {
+        if (!roleRepository.existsById(roleId)) {
+            throw new RoleException.RoleNotFound(roleId);
+        }
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
         Page<RoleAuditLog> auditLogsPage = roleAuditLogRepository.findByRoleId(roleId, pageable);
         return auditLogsPage.map(this::mapToResponse);
     }
 
     public Page<RoleAuditLogResponse> getAuditLogsByUserId(String userId, int page, int size) {
+        if (!userRepository.existsById(userId)) {
+            throw new UserException.NotFound(userId);
+        }
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
         Page<RoleAuditLog> auditLogsPage = roleAuditLogRepository.findByUserId(userId, pageable);
         return auditLogsPage.map(this::mapToResponse);
