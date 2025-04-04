@@ -1,7 +1,13 @@
 package com.example.upbeat_backend.controller;
 
 import com.example.upbeat_backend.dto.request.role.AddRoleRequest;
+import com.example.upbeat_backend.dto.request.role.UpdateRoleNameRequest;
+import com.example.upbeat_backend.dto.request.role.UpdateRolePermissionRequest;
+import com.example.upbeat_backend.dto.response.role.GetListOfRoleResponse;
+import com.example.upbeat_backend.dto.response.role.GetRoleDetailResponse;
+import com.example.upbeat_backend.dto.response.role.RoleAuditLogResponse;
 import com.example.upbeat_backend.exception.role.RoleException;
+import com.example.upbeat_backend.model.enums.ActionType;
 import com.example.upbeat_backend.security.CurrentUser;
 import com.example.upbeat_backend.security.UserPrincipal;
 import com.example.upbeat_backend.security.permission.CustomPermissionEvaluator;
@@ -45,9 +51,9 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.hamcrest.Matchers.hasSize;
 
 @ExtendWith(MockitoExtension.class)
 public class RoleControllerTest {
@@ -99,6 +105,42 @@ public class RoleControllerTest {
         public ResponseEntity<String> handleAccessDenied(AccessDeniedException ex) {
             return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
         }
+
+        @ExceptionHandler(RoleException.ForbiddenOperation.class)
+        @ResponseStatus(HttpStatus.FORBIDDEN)
+        public ResponseEntity<String> handleForbiddenOperation(RoleException.ForbiddenOperation ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+        }
+
+        @ExceptionHandler(RoleException.DeletionConflict.class)
+        @ResponseStatus(HttpStatus.CONFLICT)
+        public ResponseEntity<String> handleDeletionConflict(RoleException.DeletionConflict ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+        }
+
+        @ExceptionHandler(RoleException.DeletionFailed.class)
+        @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+        public ResponseEntity<String> handleDeletionFailed(RoleException.DeletionFailed ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+        }
+
+        @ExceptionHandler(RoleException.UpdateFailed.class)
+        @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+        public ResponseEntity<String> handleUpdateFailed(RoleException.UpdateFailed ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+        }
+
+        @ExceptionHandler(Exception.class)
+        @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+        public ResponseEntity<String> handleGenericException(Exception ex) {
+            return new ResponseEntity<>(ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+        @ResponseStatus(HttpStatus.BAD_REQUEST)
+        public ResponseEntity<String> handleValidationExceptions(org.springframework.web.bind.MethodArgumentNotValidException ex) {
+            return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+        }
     }
 
     @BeforeEach
@@ -115,6 +157,51 @@ public class RoleControllerTest {
             }
             return invocation.callRealMethod();
         }).when(roleController).addRole(any(AddRoleRequest.class));
+
+        lenient().doAnswer(invocation -> {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || auth.getAuthorities().stream()
+                    .noneMatch(a -> a.getAuthority().equals("role_delete"))) {
+                throw new AccessDeniedException("Access denied");
+            }
+            return invocation.callRealMethod();
+        }).when(roleController).deleteRole(anyString());
+
+        lenient().doAnswer(invocation -> {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || auth.getAuthorities().stream()
+                    .noneMatch(a -> a.getAuthority().equals("role_edit"))) {
+                throw new AccessDeniedException("Access denied");
+            }
+            return invocation.callRealMethod();
+        }).when(roleController).updateRole(any(UpdateRoleNameRequest.class));
+
+        lenient().doAnswer(invocation -> {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || auth.getAuthorities().stream()
+                    .noneMatch(a -> a.getAuthority().equals("role_edit"))) {
+                throw new AccessDeniedException("Access denied");
+            }
+            return invocation.callRealMethod();
+        }).when(roleController).updateRolePermission(any(UpdateRolePermissionRequest.class));
+
+        lenient().doAnswer(invocation -> {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || auth.getAuthorities().stream()
+                    .noneMatch(a -> a.getAuthority().equals("role_view"))) {
+                throw new AccessDeniedException("Access denied");
+            }
+            return invocation.callRealMethod();
+        }).when(roleController).getListOfRole();
+
+        lenient().doAnswer(invocation -> {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || auth.getAuthorities().stream()
+                    .noneMatch(a -> a.getAuthority().equals("role_view"))) {
+                throw new AccessDeniedException("Access denied");
+            }
+            return invocation.callRealMethod();
+        }).when(roleController).getRoleDetail(anyString(), anyInt(), anyInt());
 
         this.mockMvc = MockMvcBuilders
                 .standaloneSetup(roleController)
@@ -141,7 +228,7 @@ public class RoleControllerTest {
                 .build();
     }
 
-    private static Map<String, Boolean> getStringBooleanMap() {
+    private static @NotNull Map<String, Boolean> getStringBooleanMap() {
         Map<String, Boolean> permissions = new HashMap<>();
         permissions.put("user_view", true);
         permissions.put("user_create", false);
@@ -244,6 +331,539 @@ public class RoleControllerTest {
         mockMvc.perform(post("/role/add")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void deleteRole_Success() throws Exception {
+        String roleId = "role-123";
+        when(roleService.deleteRole(roleId)).thenReturn("Role deleted successfully.");
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_delete")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(delete("/role/delete")
+                .param("roleId", roleId))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Role deleted successfully."));
+
+        verify(roleService).deleteRole(roleId);
+    }
+
+    @Test
+    void deleteRole_WithoutPermission() throws Exception {
+        String roleId = "role-123";
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(delete("/role/delete")
+                .param("roleId", roleId))
+                .andExpect(status().isForbidden());
+
+        verify(roleService, never()).deleteRole(anyString());
+    }
+
+    @Test
+    void deleteRole_RoleNotFound() throws Exception {
+        String roleId = "non-existent";
+
+        when(roleService.deleteRole(roleId))
+                .thenThrow(new RoleException.RoleNotFound(roleId));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_delete")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(delete("/role/delete")
+                .param("roleId", roleId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteRole_DefaultRole() throws Exception {
+        String roleId = "default-role";
+
+        when(roleService.deleteRole(roleId))
+                .thenThrow(new RoleException.ForbiddenOperation("Cannot delete default role"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_delete")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(delete("/role/delete")
+                .param("roleId", roleId))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteRole_RoleAssignedToUsers() throws Exception {
+        String roleId = "role-with-users";
+
+        when(roleService.deleteRole(roleId))
+                .thenThrow(new RoleException.DeletionConflict("Cannot delete role that is assigned to users"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_delete")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(delete("/role/delete")
+                .param("roleId", roleId))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void deleteRole_ServerError() throws Exception {
+        String roleId = "role-error";
+
+        when(roleService.deleteRole(roleId))
+                .thenThrow(new RoleException.DeletionFailed("Failed to delete role"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_delete")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(delete("/role/delete")
+                .param("roleId", roleId))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void updateRole_Success() throws Exception {
+        UpdateRoleNameRequest request = new UpdateRoleNameRequest("role-123", "NEW_ROLE_NAME");
+
+        when(roleService.updateRoleName(any(UpdateRoleNameRequest.class)))
+            .thenReturn("Role name updated successfully.");
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_edit")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-name")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Role name updated successfully."));
+
+        verify(roleService).updateRoleName(any(UpdateRoleNameRequest.class));
+    }
+
+    @Test
+    void updateRole_WithoutPermission() throws Exception {
+        UpdateRoleNameRequest request = new UpdateRoleNameRequest("role-123", "NEW_NAME");
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-name")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+
+        verify(roleService, never()).updateRoleName(any());
+    }
+
+    @Test
+    void updateRole_RoleNotFound() throws Exception {
+        UpdateRoleNameRequest request = new UpdateRoleNameRequest("non-existent", "NEW_NAME");
+
+        when(roleService.updateRoleName(any(UpdateRoleNameRequest.class)))
+                .thenThrow(new RoleException.RoleNotFound("non-existent"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_edit")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-name")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateRole_DefaultRole() throws Exception {
+        UpdateRoleNameRequest request = new UpdateRoleNameRequest("default-role", "NEW_NAME");
+
+        when(roleService.updateRoleName(any(UpdateRoleNameRequest.class)))
+                .thenThrow(new RoleException.ForbiddenOperation("Cannot update default role"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_edit")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-name")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateRole_NameAlreadyExists() throws Exception {
+        UpdateRoleNameRequest request = new UpdateRoleNameRequest("role-123", "EXISTING_NAME");
+
+        when(roleService.updateRoleName(any(UpdateRoleNameRequest.class)))
+                .thenThrow(new RoleException.RoleAlreadyExists("EXISTING_NAME"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_edit")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-name")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void updateRole_UpdateFailed() throws Exception {
+        UpdateRoleNameRequest request = new UpdateRoleNameRequest("role-123", "NEW_NAME");
+
+        when(roleService.updateRoleName(any(UpdateRoleNameRequest.class)))
+                .thenThrow(new RoleException.UpdateFailed("Database error"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_edit")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-name")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void updateRolePermission_Success() throws Exception {
+        String roleId = "role-123";
+        Map<String, Boolean> permissions = getStringBooleanMap();
+        UpdateRolePermissionRequest request = new UpdateRolePermissionRequest(roleId, permissions);
+
+        when(roleService.updateRolePermission(any(UpdateRolePermissionRequest.class)))
+            .thenReturn("Role permissions updated successfully.");
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_edit")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-permission")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Role permissions updated successfully."));
+
+        verify(roleService).updateRolePermission(any(UpdateRolePermissionRequest.class));
+    }
+
+    @Test
+    void updateRolePermission_WithoutPermission() throws Exception {
+        UpdateRolePermissionRequest request = new UpdateRolePermissionRequest("role-123", getStringBooleanMap());
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-permission")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+
+        verify(roleService, never()).updateRolePermission(any());
+    }
+
+    @Test
+    void updateRolePermission_RoleNotFound() throws Exception {
+        UpdateRolePermissionRequest request = new UpdateRolePermissionRequest("non-existent", getStringBooleanMap());
+
+        when(roleService.updateRolePermission(any(UpdateRolePermissionRequest.class)))
+                .thenThrow(new RoleException.RoleNotFound("non-existent"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_edit")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-permission")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateRolePermission_DefaultRole() throws Exception {
+        UpdateRolePermissionRequest request = new UpdateRolePermissionRequest("default-role", getStringBooleanMap());
+
+        when(roleService.updateRolePermission(any(UpdateRolePermissionRequest.class)))
+                .thenThrow(new RoleException.ForbiddenOperation("Cannot update permissions of default role"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_edit")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-permission")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateRolePermission_UpdateFailed() throws Exception {
+        UpdateRolePermissionRequest request = new UpdateRolePermissionRequest("role-123", getStringBooleanMap());
+
+        when(roleService.updateRolePermission(any(UpdateRolePermissionRequest.class)))
+                .thenThrow(new RoleException.UpdateFailed("Database error"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_edit")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(patch("/role/update-permission")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void getListOfRole_Success() throws Exception {
+        List<GetListOfRoleResponse> mockRoles = List.of(
+                new GetListOfRoleResponse("role-1", "ADMIN"),
+                new GetListOfRoleResponse("role-2", "USER")
+        );
+
+        when(roleService.getListOfRole()).thenReturn(mockRoles);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_view")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/get-list"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].id").value("role-1"))
+                .andExpect(jsonPath("$[0].name").value("ADMIN"))
+                .andExpect(jsonPath("$[1].id").value("role-2"))
+                .andExpect(jsonPath("$[1].name").value("USER"));
+
+        verify(roleService).getListOfRole();
+    }
+
+    @Test
+    void getListOfRole_WithoutPermission() throws Exception {
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/get-list"))
+                .andExpect(status().isForbidden());
+
+        verify(roleService, never()).getListOfRole();
+    }
+
+    @Test
+    void getListOfRole_EmptyList() throws Exception {
+        when(roleService.getListOfRole()).thenReturn(Collections.emptyList());
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_view")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/get-list"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+
+        verify(roleService).getListOfRole();
+    }
+
+    @Test
+    void getListOfRole_ServerError() throws Exception {
+        when(roleService.getListOfRole()).thenThrow(new RuntimeException("Database error"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_view")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/get-list"))
+                .andExpect(status().isInternalServerError());
+
+        verify(roleService).getListOfRole();
+    }
+
+    @Test
+    void getRoleDetail_Success() throws Exception {
+        String roleId = "role-123";
+        Map<String, Boolean> permissions = getStringBooleanMap();
+        GetRoleDetailResponse mockResponse = GetRoleDetailResponse.builder()
+                .id(roleId)
+                .name("ADMIN")
+                .permissions(permissions)
+                .createdAt("2023-01-01T10:00:00")
+                .updatedAt("2023-01-02T10:00:00")
+                .auditLogs(List.of(
+                        RoleAuditLogResponse.builder()
+                                .actionType(ActionType.CREATE)
+                                .roleId(roleId)
+                                .roleName("ADMIN")
+                                .userId("user-1")
+                                .userName("admin")
+                                .timestamp("2023-01-01T10:00:00")
+                                .build()
+                ))
+                .currentPage(0)
+                .totalPages(1)
+                .totalElements(1)
+                .build();
+
+        when(roleService.getRoleDetail(eq(roleId), eq(0), eq(10)))
+                .thenReturn(mockResponse);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_view")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/{roleId}/get-detail", roleId)
+                .param("page", "0")
+                .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(roleId))
+                .andExpect(jsonPath("$.name").value("ADMIN"))
+                .andExpect(jsonPath("$.permissions").exists())
+                .andExpect(jsonPath("$.auditLogs", hasSize(1)))
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        verify(roleService).getRoleDetail(roleId, 0, 10);
+    }
+
+    @Test
+    void getRoleDetail_RoleNotFound() throws Exception {
+        String roleId = "non-existent";
+
+        when(roleService.getRoleDetail(eq(roleId), anyInt(), anyInt()))
+                .thenThrow(new RoleException.RoleNotFound(roleId));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_view")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/{roleId}/get-detail", roleId))
+                .andExpect(status().isNotFound());
+
+        verify(roleService).getRoleDetail(roleId, 0, 10);
+    }
+
+    @Test
+    void getRoleDetail_WithoutPermission() throws Exception {
+        String roleId = "role-123";
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/{roleId}/get-detail", roleId))
+                .andExpect(status().isForbidden());
+
+        verify(roleService, never()).getRoleDetail(anyString(), anyInt(), anyInt());
+    }
+
+    @Test
+    void getRoleDetail_EmptyAuditLogs() throws Exception {
+        String roleId = "role-123";
+        Map<String, Boolean> permissions = getStringBooleanMap();
+        GetRoleDetailResponse mockResponse = GetRoleDetailResponse.builder()
+                .id(roleId)
+                .name("USER")
+                .permissions(permissions)
+                .createdAt("2023-01-01T10:00:00")
+                .updatedAt("2023-01-01T10:00:00")
+                .auditLogs(Collections.emptyList())
+                .currentPage(0)
+                .totalPages(0)
+                .totalElements(0)
+                .build();
+
+        when(roleService.getRoleDetail(eq(roleId), eq(0), eq(10)))
+                .thenReturn(mockResponse);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_view")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/{roleId}/get-detail", roleId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.auditLogs", hasSize(0)))
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void getRoleDetail_WithPagination() throws Exception {
+        String roleId = "role-123";
+        int page = 2;
+        int size = 5;
+
+        GetRoleDetailResponse mockResponse = GetRoleDetailResponse.builder()
+                .id(roleId)
+                .name("ADMIN")
+                .currentPage(page)
+                .totalPages(4)
+                .totalElements(20)
+                .auditLogs(List.of(/* some audit logs */))
+                .build();
+
+        when(roleService.getRoleDetail(roleId, page, size)).thenReturn(mockResponse);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_view")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/{roleId}/get-detail", roleId)
+                .param("page", String.valueOf(page))
+                .param("size", String.valueOf(size)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentPage").value(page))
+                .andExpect(jsonPath("$.totalPages").value(4))
+                .andExpect(jsonPath("$.totalElements").value(20));
+
+        verify(roleService).getRoleDetail(roleId, page, size);
+    }
+
+    @Test
+    void getRoleDetail_ServerError() throws Exception {
+        String roleId = "role-error";
+
+        when(roleService.getRoleDetail(eq(roleId), anyInt(), anyInt()))
+                .thenThrow(new RuntimeException("Server error"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                UserPrincipal.builder().build(), null,
+                List.of(new SimpleGrantedAuthority("role_view")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(get("/role/{roleId}/get-detail", roleId))
                 .andExpect(status().isInternalServerError());
     }
 }
