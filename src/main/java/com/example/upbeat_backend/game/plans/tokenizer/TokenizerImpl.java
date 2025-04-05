@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-@Builder
 public class TokenizerImpl implements Tokenizer {
     private final String src;
     private int pos;
