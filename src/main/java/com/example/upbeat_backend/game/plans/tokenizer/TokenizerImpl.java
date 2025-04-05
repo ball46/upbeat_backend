@@ -4,7 +4,6 @@ import com.example.upbeat_backend.game.exception.tokenizer.TokenizerException;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.model.enums.Operator;
 import com.example.upbeat_backend.game.model.enums.Type;
-import lombok.Builder;
 import lombok.Data;
 import org.jetbrains.annotations.NotNull;
 
