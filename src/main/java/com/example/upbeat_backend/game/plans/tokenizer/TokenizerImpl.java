@@ -4,13 +4,11 @@ import com.example.upbeat_backend.game.exception.tokenizer.TokenizerException;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.model.enums.Operator;
 import com.example.upbeat_backend.game.model.enums.Type;
-import lombok.Data;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Data
 public class TokenizerImpl implements Tokenizer {
     private final String src;
     private int pos;

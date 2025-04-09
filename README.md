@@ -24,36 +24,50 @@ src/
 ├── main/
 │   ├── java/
 │   │   └── com/example/upbeat_backend/
-│   │       ├── config/          # Configuration classes and security setup
-│   │       ├── controller/      # REST API endpoints
-│   │       ├── dto/             # Data transfer objects
-│   │       │   └── request/     # Request DTOs
-│   │       │   └── response/    # Response DTOs
-│   │       ├── exception/       # Custom exceptions
-│   │       │   ├── base/        # Base exception classes
-│   │       │   ├── handler/     # Global exception handling
-│   │       │   └──response/     # Exception response handling
-│   │       ├── model/           # Data models
-│   │       │   └── enums/       # Enumerations
-│   │       ├── repository/      # Data access layer
-│   │       ├── security/        # Security classes (UserPrincipal)
-│   │       │   └── jwt/         # JWT utilities
-│   │       │   └── permission/  # Permission management
-│   │       │   └── service/     # Security services
-│   │       ├── service/         # Business logic
-│   │       ├── util/            # Utility classes
-│   │       ├── validation/      # Custom validators
-│   │       │   ├── annotation/  # Custom validation annotations
-│   │       │   └── validator/   # Custom validator implementations
+│   │       ├── config/                 # Configuration classes and security setup
+│   │       ├── controller/             # REST API endpoints
+│   │       ├── dto/                    # Data transfer objects
+│   │       │   └── request/            # Request DTOs
+│   │       │   └── response/           # Response DTOs
+│   │       ├── exception/              # Custom exceptions
+│   │       │   ├── base/               # Base exception classes
+│   │       │   ├── handler/            # Global exception handling
+│   │       │   └──response/            # Exception response handling
+│   │       ├── game/                   # Game-related classes
+│   │       │   ├── dto/                # Game-specific DTOs
+│   │       │   ├── exception/          # Game-specific exceptions
+│   │       │   ├── logic/              # Game logic and rules
+│   │       │   ├── model/              # Game models
+│   │       │   │   └── enums/          # Enumerations
+│   │       │   ├── plans/              # Game plans and strategies
+│   │       │   │   ├── interpreter/    # Interpreter classes
+│   │       │   │   ├── parser/         # Parser classes
+│   │       │   │   ├── tokenizer/      # Tokenizer classes
+│   │       │   │   └── validator/      # Game plan validators
+│   │       │   ├── runtime/            # Game runtime classes (redis)
+│   │       │   ├── service/            # Game services
+│   │       │   └── state/              # Game state management
+│   │       ├── model/                  # Data models
+│   │       │   └── enums/              # Enumerations
+│   │       ├── repository/             # Data access layer
+│   │       ├── security/               # Security classes (UserPrincipal)
+│   │       │   └── jwt/                # JWT utilities
+│   │       │   └── permission/         # Permission management
+│   │       │   └── service/            # Security services
+│   │       ├── service/                # Business logic
+│   │       ├── util/                   # Utility classes
+│   │       ├── validation/             # Custom validators
+│   │       │   ├── annotation/         # Custom validation annotations
+│   │       │   └── validator/          # Custom validator implementations
 │   │       └── UpbeatBackendApplication.java
 │   └── resources/
 │       └── application.properties
 └── test/
     └── java/
         └── com/example/upbeat_backend/
-            ├── controller/      # Controller tests
-            ├── security/        # Security tests
-            └── service/         # Service tests
+            ├── controller/             # Controller tests
+            ├── security/               # Security tests
+            └── service/                # Service tests
 ```
 
 ## 🚀 Installation

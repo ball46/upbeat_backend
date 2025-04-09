@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 public enum Operator {
     PLUS("+"), MINUS("-"), MULTIPLY("*"), DIVIDE("/"),
     LEFT_PAREN("("), RIGHT_PAREN(")"), LEFT_BRACE("{"), RIGHT_BRACE("}"),
-    CARET("^"), EQUALS("="), PERCENT("%");
+    CARET("^"), EQUALS("="), MOD("%");
 
     private final String symbol;
 

@@ -2,7 +2,6 @@ package com.example.upbeat_backend.game.model.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.jetbrains.annotations.Nullable;
 
 @Getter
 @AllArgsConstructor
@@ -35,7 +34,7 @@ public enum Keyword {
 
     private final String lexeme;
 
-    public static @Nullable Keyword fromString(String lexeme) {
+    public static Keyword fromString(String lexeme) {
         for (Keyword keyword : values()) {
             if (keyword.lexeme.equals(lexeme)) {
                 return keyword;
@@ -46,5 +45,23 @@ public enum Keyword {
 
     public static boolean isKeyword(String lexeme) {
         return fromString(lexeme) != null;
+    }
+
+    public boolean isDirection() {
+        return this == UP || this == DOWN || this == UPLEFT ||
+                this == UPRIGHT || this == DOWNLEFT || this == DOWNRIGHT;
+    }
+
+    public boolean isAction() {
+        return this == COLLECT || this == INVEST || this == MOVE ||
+                this == RELOCATE || this == SHOOT || this == DONE;
+    }
+
+    public boolean isControlFlow() {
+        return this == IF || this == ELSE || this == THEN || this == WHILE;
+    }
+
+    public boolean isInfo() {
+        return this == NEARBY || this == OPPONENT;
     }
 }
