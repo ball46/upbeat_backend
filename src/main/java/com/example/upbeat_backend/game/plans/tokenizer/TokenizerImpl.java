@@ -3,6 +3,7 @@ package com.example.upbeat_backend.game.plans.tokenizer;
 import com.example.upbeat_backend.game.exception.tokenizer.TokenizerException;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.model.enums.Operator;
+import com.example.upbeat_backend.game.model.enums.Special;
 import com.example.upbeat_backend.game.model.enums.Type;
 import org.jetbrains.annotations.NotNull;
 
@@ -132,7 +133,11 @@ public class TokenizerImpl implements Tokenizer {
             }
 
             String identifier = src.substring(start, pos);
-            Type type = Keyword.isKeyword(identifier) ? Type.KEYWORD : Type.IDENTIFIER;
+
+            Type type = Special.isSpecial(identifier) ? Type.SPECIAL :
+                    Keyword.isKeyword(identifier) ?
+                            Type.KEYWORD :
+                            Type.IDENTIFIER;
             currentToken = new Token(identifier, type, start);
             return;
         }

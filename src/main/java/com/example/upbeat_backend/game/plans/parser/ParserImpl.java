@@ -3,6 +3,7 @@ package com.example.upbeat_backend.game.plans.parser;
 import com.example.upbeat_backend.game.exception.parser.ParserException;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.model.enums.Operator;
+import com.example.upbeat_backend.game.model.enums.Special;
 import com.example.upbeat_backend.game.model.enums.Type;
 import com.example.upbeat_backend.game.plans.parser.ast.Expression;
 import com.example.upbeat_backend.game.plans.parser.ast.Node;
@@ -10,6 +11,7 @@ import com.example.upbeat_backend.game.plans.parser.ast.Statement;
 import com.example.upbeat_backend.game.plans.parser.ast.expressions.BinaryExpression;
 import com.example.upbeat_backend.game.plans.parser.ast.expressions.IdentifierExpression;
 import com.example.upbeat_backend.game.plans.parser.ast.expressions.NumberExpression;
+import com.example.upbeat_backend.game.plans.parser.ast.expressions.SpecialExpression;
 import com.example.upbeat_backend.game.plans.parser.ast.expressions.info.NearbyExpression;
 import com.example.upbeat_backend.game.plans.parser.ast.expressions.info.OpponentExpression;
 import com.example.upbeat_backend.game.plans.parser.ast.plan.PlanNode;
@@ -161,8 +163,6 @@ public class ParserImpl implements Parser {
     }
 
     private InvestCommand parseInvestCommand() {
-        expectKeyword(Keyword.INVEST); // Consume 'invest'
-
         Expression expression = parseExpression();
         if (expression == null) {
             throw new ParserException.InvalidExpression("null expression in invest command", tokenizer.getPosition());
@@ -172,8 +172,6 @@ public class ParserImpl implements Parser {
     }
 
     private CollectCommand parseCollectCommand() {
-        expectKeyword(Keyword.COLLECT); // Consume 'collect'
-
         Expression expression = parseExpression();
         if (expression == null) {
             throw new ParserException.InvalidExpression("null expression in collect command", tokenizer.getPosition());
@@ -183,8 +181,6 @@ public class ParserImpl implements Parser {
     }
 
     private ShootCommand parseShootCommand() {
-        expectKeyword(Keyword.SHOOT); // Consume 'shoot'
-
         Keyword direction = parseDirection();
 
         Expression expression = parseExpression();
@@ -233,7 +229,7 @@ public class ParserImpl implements Parser {
 
             Operator operator = Operator.fromString(tokenizer.consume());
 
-            Expression right = parsePower();
+            Expression right = parseFactor();
 
             left = new BinaryExpression(left, right, operator);
         }
@@ -243,6 +239,8 @@ public class ParserImpl implements Parser {
     private Expression parsePower() {
         if (tokenizer.peekType() == Type.NUMBER) {
             return new NumberExpression(Long.parseLong(tokenizer.consume()));
+        } else if (tokenizer.peekType() == Type.SPECIAL) {
+            return new SpecialExpression(Special.fromString(tokenizer.consume()));
         } else if (tokenizer.peekType() == Type.IDENTIFIER) {
             return new IdentifierExpression(tokenizer.consume());
         } else if (tokenizer.peekValue().equals(Operator.LEFT_PAREN.getSymbol())) {
@@ -250,11 +248,16 @@ public class ParserImpl implements Parser {
             Expression expression = parseExpression();
             expectOperator(Operator.RIGHT_PAREN); // Consume ')'
             return expression;
-        } else if (tokenizer.peekType() == Type.KEYWORD &&
-                (Keyword.fromString(tokenizer.peekValue())).isInfo()) {
-            return parseInfoExpression();
+        } else if (tokenizer.peekType() == Type.KEYWORD ) {
+            Keyword keyword = Keyword.fromString(tokenizer.peekValue());
+            if (keyword != null && keyword.isInfo()) {
+                return parseInfoExpression();
+            }
         }
-        return null;
+        throw new ParserException.InvalidExpression(
+                "Unexpected token in expression: " + tokenizer.peekValue(),
+                tokenizer.getPosition()
+        );
     }
 
     private Expression parseInfoExpression() {

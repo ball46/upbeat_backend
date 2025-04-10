@@ -5,5 +5,6 @@ public enum Type {
     IDENTIFIER,
     OPERATOR,
     KEYWORD,
+    SPECIAL,
     EOF
 }
