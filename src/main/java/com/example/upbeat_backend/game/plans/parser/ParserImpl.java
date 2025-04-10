@@ -163,11 +163,11 @@ public class ParserImpl implements Parser {
     }
 
     private InvestCommand parseInvestCommand() {
-        Expression expression = parseExpression();
-        if (expression == null) {
-            throw new ParserException.InvalidExpression("null expression in invest command", tokenizer.getPosition());
+        if (!tokenizer.hasNextToken()) {
+            throw new ParserException.MissingToken("amount expression", tokenizer.getPosition());
         }
 
+        Expression expression = parseExpression();
         return new InvestCommand(expression);
     }
 
