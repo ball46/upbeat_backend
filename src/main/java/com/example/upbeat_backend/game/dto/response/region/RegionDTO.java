@@ -11,7 +11,7 @@ public record RegionDTO(
                 region.getDeposit(),
                 region.getRow(),
                 region.getCol(),
-                region.getOwner() != null ? region.getOwner().getId() : null
+                region.getOwner() != null ? region.getOwner() : null
         );
     }
 }

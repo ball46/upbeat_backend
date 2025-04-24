@@ -1,20 +1,18 @@
 package com.example.upbeat_backend.game.state.region;
 
-import com.example.upbeat_backend.game.state.player.Player;
-
 public class RegionImpl implements Region {
     private long deposit;
     private final long maxDeposit;
     private final int row;
     private final int col;
-    private Player owner;
+    private String ownerId;
 
     public RegionImpl(long maxDeposit, int row, int col) {
         this.maxDeposit = maxDeposit;
         this.row = row;
         this.col = col;
         this.deposit = 0;
-        this.owner = null;
+        this.ownerId = null;
     }
 
     @Override
@@ -39,12 +37,12 @@ public class RegionImpl implements Region {
     }
 
     @Override
-    public Player getOwner() {
-        return owner;
+    public String getOwner() {
+        return ownerId;
     }
 
     @Override
-    public void updateOwner(Player owner) {
-        this.owner = owner;
+    public void updateOwner(String ownerId) {
+        this.ownerId = ownerId;
     }
 }

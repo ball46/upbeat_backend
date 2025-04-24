@@ -1,24 +1,24 @@
 package com.example.upbeat_backend.repository;
 
+import com.example.upbeat_backend.game.dto.reids.CurrentStateDTO;
+import com.example.upbeat_backend.game.dto.reids.GameConfigDTO;
+import com.example.upbeat_backend.game.dto.reids.GameInfoDTO;
+import com.example.upbeat_backend.game.dto.reids.TerritorySizeDTO;
 import com.example.upbeat_backend.game.model.enums.GameStatus;
-import com.example.upbeat_backend.game.state.player.Player;
-import com.example.upbeat_backend.game.state.region.Region;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.upbeat_backend.game.state.region.*;
+import com.example.upbeat_backend.game.state.player.*;
+import lombok.AllArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 
+@AllArgsConstructor
 @Repository
 public class RedisGameStateRepository {
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ObjectMapper objectMapper;
-
-    public RedisGameStateRepository(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
-        this.objectMapper = new ObjectMapper();
-    }
 
     // ======== GAME INFO ========
     public void saveGameInfo(String gameId, GameStatus status, int maxPlayers, int currentTurn) {
@@ -46,9 +46,66 @@ public class RedisGameStateRepository {
         redisTemplate.opsForHash().put(key, "lastUpdatedAt", Instant.now().getEpochSecond());
     }
 
-    public Map<Object, Object> getGameInfo(String gameId) {
+    public GameInfoDTO getGameInfo(String gameId) {
         String key = "game:" + gameId + ":info";
-        return redisTemplate.opsForHash().entries(key);
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
+
+        if (data.isEmpty()) return null;
+
+        GameStatus status = GameStatus.valueOf((String) data.get("status"));
+        Timestamp createdAt = new Timestamp(((Number) data.get("createdAt")).longValue());
+        int maxPlayers = ((Number) data.get("maxPlayers")).intValue();
+        int currentTurn = ((Number) data.get("currentTurn")).intValue();
+        Timestamp lastUpdatedAt = new Timestamp(((Number) data.get("lastUpdatedAt")).longValue());
+
+        return GameInfoDTO.builder()
+                .gameStatus(status)
+                .createAt(createdAt)
+                .maxPlayers(maxPlayers)
+                .currentTurn(currentTurn)
+                .lastUpdateAt(lastUpdatedAt)
+                .build();
+    }
+
+    // ======== GAME CONFIGURATION ========
+    public void saveGameConfig(String gameId, GameConfigDTO configDTO) {
+        String key = "game:" + gameId + ":config";
+
+        Map<String, Object> config = new HashMap<>();
+        config.put("rows", configDTO.getRows());
+        config.put("cols", configDTO.getCols());
+        config.put("initPlanMin", configDTO.getInitPlanMin());
+        config.put("initPlanSec", configDTO.getInitPlanSec());
+        config.put("initBudget", configDTO.getInitBudget());
+        config.put("initCenterDep", configDTO.getInitCenterDep());
+        config.put("planRevMin", configDTO.getPlanRevMin());
+        config.put("planRevSec", configDTO.getPlanRevSec());
+        config.put("revCost", configDTO.getRevCost());
+        config.put("maxDep", configDTO.getMaxDep());
+        config.put("interestPct", configDTO.getInterestPct());
+
+        redisTemplate.opsForHash().putAll(key, config);
+    }
+
+    public GameConfigDTO getGameConfig(String gameId) {
+        String key = "game:" + gameId + ":config";
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
+
+        if (data.isEmpty()) return null;
+
+        return GameConfigDTO.builder()
+                .rows(((Number) data.get("rows")).intValue())
+                .cols(((Number) data.get("cols")).intValue())
+                .initPlanMin(((Number) data.get("initPlanMin")).intValue())
+                .initPlanSec(((Number) data.get("initPlanSec")).intValue())
+                .initBudget(((Number) data.get("initBudget")).longValue())
+                .initCenterDep(((Number) data.get("initCenterDep")).longValue())
+                .planRevMin(((Number) data.get("planRevMin")).intValue())
+                .planRevSec(((Number) data.get("planRevSec")).intValue())
+                .revCost(((Number) data.get("revCost")).longValue())
+                .maxDep(((Number) data.get("maxDep")).longValue())
+                .interestPct(((Number) data.get("interestPct")).intValue())
+                .build();
     }
 
     // ======== PLAYERS ========
@@ -57,9 +114,17 @@ public class RedisGameStateRepository {
         redisTemplate.opsForSet().add(key, playerId);
     }
 
-    public Set<Object> getGamePlayers(String gameId) {
+    public Set<String> getGamePlayers(String gameId) {
         String key = "game:" + gameId + ":players";
-        return redisTemplate.opsForSet().members(key);
+        Set<Object> objects = redisTemplate.opsForSet().members(key);
+        if (objects == null) {
+            return Collections.emptySet();
+        }
+        Set<String> result = new HashSet<>();
+        for (Object obj : objects) {
+            result.add(obj.toString());
+        }
+        return result;
     }
 
     public void removePlayerFromGame(String gameId, String playerId) {
@@ -75,8 +140,8 @@ public class RedisGameStateRepository {
         playerData.put("id", player.getId());
         playerData.put("name", player.getName());
         playerData.put("budget", player.getBudget());
-        playerData.put("cityCenterRow", player.getCityCenter().getRow());
-        playerData.put("cityCenterCol", player.getCityCenter().getCol());
+        playerData.put("cityCenterRow", player.getCityCenterRow());
+        playerData.put("cityCenterCol", player.getCityCenterCol());
 
         redisTemplate.opsForHash().putAll(key, playerData);
     }
@@ -86,9 +151,19 @@ public class RedisGameStateRepository {
         redisTemplate.opsForHash().put(key, "budget", budget);
     }
 
-    public Map<Object, Object> getPlayer(String gameId, String playerId) {
+    public Player getPlayer(String gameId, String playerId) {
         String key = "game:" + gameId + ":player:" + playerId;
-        return redisTemplate.opsForHash().entries(key);
+        Map<Object, Object> playerData = redisTemplate.opsForHash().entries(key);
+
+        if (playerData.isEmpty()) return null;
+
+        String id = (String) playerData.get("id");
+        String name = (String) playerData.get("name");
+        long budget = ((Number) playerData.get("budget")).longValue();
+        int cityCenterRow = ((Number) playerData.get("cityCenterRow")).intValue();
+        int cityCenterCol = ((Number) playerData.get("cityCenterCol")).intValue();
+
+        return new PlayerImpl(id, name, budget, cityCenterRow, cityCenterCol);
     }
 
     // ======== PLAYER PLANS ========
@@ -102,39 +177,66 @@ public class RedisGameStateRepository {
         redisTemplate.delete(key);
     }
 
-    public List<Object> getPlayerPlans(String gameId, String playerId) {
+    public List<String> getPlayerPlans(String gameId, String playerId) {
         String key = "game:" + gameId + ":player:" + playerId + ":plans";
-        return redisTemplate.opsForList().range(key, 0, -1);
+        List<Object> plans = redisTemplate.opsForList().range(key, 0, -1);
+        if (plans == null) {
+            return Collections.emptyList();
+        }
+        List<String> result = new ArrayList<>();
+        for (Object plan : plans) {
+            result.add(plan.toString());
+        }
+        return result;
     }
 
     // ======== PLAYER VARIABLES ========
-    public void setPlayerVariable(String gameId, String playerId, String varName, Object value) {
+    public void setPlayerVariable(String gameId, String playerId, String varName, Long value) {
         String key = "game:" + gameId + ":player:" + playerId + ":vars";
         redisTemplate.opsForHash().put(key, varName, value);
     }
 
-    public Object getPlayerVariable(String gameId, String playerId, String varName) {
+    public Long getPlayerVariable(String gameId, String playerId, String varName) {
         String key = "game:" + gameId + ":player:" + playerId + ":vars";
-        return redisTemplate.opsForHash().get(key, varName);
+        Object value = redisTemplate.opsForHash().get(key, varName);
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        return null;
     }
 
-    public Map<Object, Object> getAllPlayerVariables(String gameId, String playerId) {
+    public Map<String, Long> getAllPlayerVariables(String gameId, String playerId) {
         String key = "game:" + gameId + ":player:" + playerId + ":vars";
-        return redisTemplate.opsForHash().entries(key);
+        Map<Object, Object> playerVars = redisTemplate.opsForHash().entries(key);
+        if (playerVars.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, Long> result = new HashMap<>();
+        for (Map.Entry<Object, Object> entry : playerVars.entrySet()) {
+            String varName = (String) entry.getKey();
+            Long value = ((Number) entry.getValue()).longValue();
+            result.put(varName, value);
+        }
+        return result;
     }
 
     // ======== TERRITORY SIZE ========
     public void saveTerritorySize(String gameId, int rows, int cols) {
         String key = "game:" + gameId + ":territory:size";
-        Map<String, Object> size = new HashMap<>();
+        Map<String, Integer> size = new HashMap<>();
         size.put("rows", rows);
         size.put("cols", cols);
         redisTemplate.opsForHash().putAll(key, size);
     }
 
-    public Map<Object, Object> getTerritorySize(String gameId) {
+    public TerritorySizeDTO getTerritorySize(String gameId) {
         String key = "game:" + gameId + ":territory:size";
-        return redisTemplate.opsForHash().entries(key);
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
+        if (data.isEmpty()) return null;
+        return TerritorySizeDTO.builder()
+                .rows(((Number) data.get("rows")).intValue())
+                .cols(((Number) data.get("cols")).intValue())
+                .build();
     }
 
     // ======== REGIONS ========
@@ -144,20 +246,65 @@ public class RedisGameStateRepository {
 
         Map<String, Object> regionData = new HashMap<>();
         regionData.put("deposit", region.getDeposit());
-        regionData.put("owner", region.getOwner() != null ? region.getOwner().getId() : null);
+        regionData.put("owner", region.getOwner() != null ? region.getOwner() : null);
 
         redisTemplate.opsForHash().put(key, field, regionData);
     }
 
-    public Object getRegion(String gameId, int row, int col) {
+    public Region getRegion(String gameId, int row, int col) {
         String key = "game:" + gameId + ":territory:regions";
         String field = row + ":" + col;
-        return redisTemplate.opsForHash().get(key, field);
+        Object regionObj = redisTemplate.opsForHash().get(key, field);
+
+        GameConfigDTO gameConfig = getGameConfig(gameId);
+        long maxDeposit = gameConfig.getMaxDep();
+
+        if (regionObj == null) {
+            return new RegionImpl(maxDeposit, row, col);
+        }
+
+        Map<?, ?> regionData = (Map<?, ?>) regionObj;
+
+        return createRegion(maxDeposit, row, col, regionData);
     }
 
-    public Map<Object, Object> getAllRegions(String gameId) {
+    public Map<String, Region> getAllRegions(String gameId) {
         String key = "game:" + gameId + ":territory:regions";
-        return redisTemplate.opsForHash().entries(key);
+        Map<Object, Object> rawData = redisTemplate.opsForHash().entries(key);
+
+        GameConfigDTO gameConfig = getGameConfig(gameId);
+        long maxDeposit = gameConfig.getMaxDep();
+
+        Map<String, Region> regions = new HashMap<>();
+
+        for (Map.Entry<Object, Object> entry : rawData.entrySet()) {
+            String position = (String) entry.getKey();
+            Map<?, ?> regionData = (Map<?, ?>) entry.getValue();
+
+            String[] coords = position.split(":");
+            int row = Integer.parseInt(coords[0]);
+            int col = Integer.parseInt(coords[1]);
+
+            Region region = createRegion(maxDeposit, row, col, regionData);
+
+            regions.put(position, region);
+        }
+
+        return regions;
+    }
+
+    private Region createRegion(long maxDeposit, int row, int col, Map<?, ?> regionData) {
+        Region region = new RegionImpl(maxDeposit, row, col);
+
+        long deposit = ((Number) regionData.get("deposit")).longValue();
+        String ownerId = (String) regionData.get("owner");
+
+        if (deposit > 0) region.updateDeposit(deposit);
+        if (ownerId != null) {
+            region.updateOwner(ownerId);
+        }
+
+        return region;
     }
 
     // ======== CURRENT STATE ========
@@ -181,12 +328,18 @@ public class RedisGameStateRepository {
         redisTemplate.opsForHash().put(key, "currentPlayerId", playerId);
     }
 
-    public Map<Object, Object> getCurrentState(String gameId) {
+    public CurrentStateDTO getCurrentState(String gameId) {
         String key = "game:" + gameId + ":currentState";
-        return redisTemplate.opsForHash().entries(key);
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
+        if (data.isEmpty()) return null;
+        return CurrentStateDTO.builder()
+                .currentPlayerId((String) data.get("currentPlayerId"))
+                .currentRow(((Number) data.get("currentRow")).intValue())
+                .currentCol(((Number) data.get("currentCol")).intValue())
+                .build();
     }
 
-    // ใช้ลบข้อมูลทั้งหมดของเกมเมื่อเกมจบ
+    // ======== DELETE GAME DATA ========
     public void deleteGameData(String gameId) {
         String gameInfoKey = "game:" + gameId + ":info";
         String playersKey = "game:" + gameId + ":players";
@@ -194,12 +347,10 @@ public class RedisGameStateRepository {
         String regionsKey = "game:" + gameId + ":territory:regions";
         String currentStateKey = "game:" + gameId + ":currentState";
 
-        // ลบข้อมูลทั้งหมดของเกม
         redisTemplate.delete(Arrays.asList(
                 gameInfoKey, playersKey, territorySizeKey, regionsKey, currentStateKey
         ));
 
-        // ลบข้อมูลผู้เล่น (ต้องดึงรายการผู้เล่นก่อน)
         Set<Object> playerIds = redisTemplate.opsForSet().members(playersKey);
         if (playerIds != null) {
             for (Object playerId : playerIds) {

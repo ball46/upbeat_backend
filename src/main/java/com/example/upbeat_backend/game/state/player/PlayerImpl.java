@@ -1,6 +1,5 @@
 package com.example.upbeat_backend.game.state.player;
 
-import com.example.upbeat_backend.game.state.region.Region;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
@@ -8,7 +7,8 @@ public class PlayerImpl implements Player {
     private String id;
     private String name;
     private long budget;
-    private Region cityCenter;
+    private int cityCenterRow;
+    private int cityCenterCol;
 
     @Override
     public String getId() {
@@ -31,18 +31,18 @@ public class PlayerImpl implements Player {
     }
 
     @Override
-    public Region getCityCenter() {
-        return cityCenter;
+    public int getCityCenterRow() {
+        return cityCenterRow;
     }
 
     @Override
-    public void updateCityCenter(Region to) {
-        if (cityCenter != null) {
-            cityCenter.updateOwner(null);
-        }
-        cityCenter = to;
-        if (cityCenter != null) {
-            cityCenter.updateOwner(this);
-        }
+    public int getCityCenterCol() {
+        return cityCenterCol;
+    }
+
+    @Override
+    public void updateCityCenter(int col, int row) {
+        this.cityCenterCol = col;
+        this.cityCenterRow = row;
     }
 }

@@ -5,6 +5,19 @@ game:{gameId}:info -> Hash
   - currentTurn: Integer
   - lastUpdatedAt: Timestamp
 
+game:{gameId}:config -> Hash
+  - rows: Integer
+  - cols: Integer
+  - initPlanMin: Integer
+  - initPlanSec: Integer
+  - initBudget: Long
+  - initCenterDep: Long
+  - planRevMin: Integer
+  - planRevSec: Integer
+  - revCost: Long
+  - maxDep: Long
+  - interestPct: int
+
 game:{gameId}:players -> Set (เก็บ player IDs)
 
 game:{gameId}:player:{playerId} -> Hash

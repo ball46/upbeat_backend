@@ -6,8 +6,7 @@ import com.example.upbeat_backend.game.state.GameState;
 import com.example.upbeat_backend.repository.RedisGameStateRepository;
 import lombok.Getter;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Getter
 public class GameEnvironmentImpl extends RedisEnvironmentImpl implements GameEnvironment {
@@ -23,7 +22,24 @@ public class GameEnvironmentImpl extends RedisEnvironmentImpl implements GameEnv
 
     @Override
     public boolean move(Keyword direction) {
-        return false;
+        boolean result = gameState.move(direction);
+        if (result) {
+            Map<String, Object> data = Map.of(
+                    "direction", direction.getLexeme(),
+                    "success", true,
+                    "position", Map.of(
+                            "row", gameState.getRow(),
+                            "col", gameState.getCol()
+                    )
+            );
+            GameEvent event = GameEvent.builder()
+                    .eventType("move")
+                    .data(data)
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+            events.add(event);
+        }
+        return result;
     }
 
     @Override
