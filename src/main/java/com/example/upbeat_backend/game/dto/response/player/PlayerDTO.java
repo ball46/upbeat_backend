@@ -15,8 +15,8 @@ public record PlayerDTO(
                 player.getId(),
                 player.getName(),
                 player.getBudget(),
-                player.getCityCenter().getRow(),
-                player.getCityCenter().getCol()
+                player.getCityCenterRow(),
+                player.getCityCenterCol()
         );
     }
 }

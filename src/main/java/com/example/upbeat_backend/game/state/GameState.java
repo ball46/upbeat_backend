@@ -1,8 +1,10 @@
 package com.example.upbeat_backend.game.state;
 
 import com.example.upbeat_backend.game.model.enums.Keyword;
+import com.example.upbeat_backend.game.state.region.Region;
 
 import java.util.List;
+import java.util.Map;
 
 public interface GameState {
     boolean move(Keyword direction);
@@ -21,6 +23,6 @@ public interface GameState {
 
     long getCol();
 
-    List<Object> getTerritory();
+    Map<String, Region> getTerritory();
 
 }

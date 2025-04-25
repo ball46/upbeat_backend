@@ -3,6 +3,8 @@ package com.example.upbeat_backend.game.model.enums;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 @AllArgsConstructor
 public enum Keyword {
@@ -50,6 +52,10 @@ public enum Keyword {
     public boolean isDirection() {
         return this == UP || this == DOWN || this == UPLEFT ||
                 this == UPRIGHT || this == DOWNLEFT || this == DOWNRIGHT;
+    }
+
+    public static List<Keyword> directions() {
+        return List.of(UP, DOWN, UPLEFT, UPRIGHT, DOWNLEFT, DOWNRIGHT);
     }
 
     public boolean isAction() {

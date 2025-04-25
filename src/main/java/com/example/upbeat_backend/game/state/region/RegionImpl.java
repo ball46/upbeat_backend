@@ -16,6 +16,11 @@ public class RegionImpl implements Region {
     }
 
     @Override
+    public long getMaxDeposit() {
+        return maxDeposit;
+    }
+
+    @Override
     public long getDeposit() {
         return deposit;
     }

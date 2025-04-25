@@ -151,6 +151,11 @@ public class RedisGameStateRepository {
         redisTemplate.opsForHash().put(key, "budget", budget);
     }
 
+    public void incrementPlayerBudget(String gameId, String playerId, long amount) {
+        String key = "game:" + gameId + ":player:" + playerId;
+        redisTemplate.opsForHash().increment(key, "budget", amount);
+    }
+
     public Player getPlayer(String gameId, String playerId) {
         String key = "game:" + gameId + ":player:" + playerId;
         Map<Object, Object> playerData = redisTemplate.opsForHash().entries(key);
@@ -247,6 +252,17 @@ public class RedisGameStateRepository {
         Map<String, Object> regionData = new HashMap<>();
         regionData.put("deposit", region.getDeposit());
         regionData.put("owner", region.getOwner() != null ? region.getOwner() : null);
+
+        redisTemplate.opsForHash().put(key, field, regionData);
+    }
+
+    public void updateRegion(String gameId, int row, int col, long deposit, String owner) {
+        String key = "game:" + gameId + ":territory:regions";
+        String field = row + ":" + col;
+
+        Map<String, Object> regionData = new HashMap<>();
+        regionData.put("deposit", deposit);
+        regionData.put("owner", owner);
 
         redisTemplate.opsForHash().put(key, field, regionData);
     }

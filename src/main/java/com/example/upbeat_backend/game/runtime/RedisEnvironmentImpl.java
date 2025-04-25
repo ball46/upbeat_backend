@@ -19,11 +19,11 @@ public class RedisEnvironmentImpl implements Environment {
 
     @Override
     public long getVariable(String name) {
-        Object value = repository.getPlayerVariable(gameId, playerId, name);
+        Long value = repository.getPlayerVariable(gameId, playerId, name);
         if (value == null) {
             throw new ParserException.UndefinedVariable(name);
         }
-        return value instanceof Integer ? ((Integer) value).longValue() : (Long) value;
+        return value;
     }
 
     @Override
