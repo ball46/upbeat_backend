@@ -21,12 +21,41 @@ public class GameStateImpl implements GameState {
     }
 
     @Override
+    public boolean relocate() {
+        CurrentStateDTO currentState = payForCommand();
+        Player player = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
+        Territory territory = new TerritoryImpl(gameId, repository);
+
+        Region cityCenter = territory.getRegion(player.getCityCenterRow(), player.getCityCenterCol());
+        Region region = territory.getRegion(currentState.getCurrentRow(), currentState.getCurrentCol());
+
+        if (!territory.isMyRegion(currentState.getCurrentRow(), currentState.getCurrentCol(), player.getId())) return false;
+
+        int distance = calculateHexDistance(cityCenter.getRow(), cityCenter.getCol(), region.getRow(), region.getCol());
+
+        long cost = (5L * distance) + 10;
+
+        if (player.getBudget() < cost) return false;
+
+        player.updateBudget(-cost);
+        player.updateCityCenter(currentState.getCurrentRow(), currentState.getCurrentCol());
+
+        cityCenter.updateOwner(null);
+        region.updateOwner(player.getId());
+
+        repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), region.getOwner());
+        repository.updateRegion(gameId, cityCenter.getRow(), cityCenter.getCol(), cityCenter.getDeposit(), cityCenter.getOwner());
+        repository.updatePlayerBudget(gameId, player.getId(), player.getBudget());
+
+        return true;
+    }
+
+    @Override
     public boolean move(Keyword direction) {
         CurrentStateDTO currentState = payForCommand();
+        Territory territory = new TerritoryImpl(gameId, repository);
 
         int[] newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
-
-        Territory territory = new TerritoryImpl(gameId, repository);
 
         if(isValidPosition(newPosition[0], newPosition[1]) &&
                 (territory.isWasteland(newPosition[0], newPosition[1]) ||
@@ -56,9 +85,10 @@ public class GameStateImpl implements GameState {
         amount = Math.min(amount, region.getMaxDeposit());
         player.updateBudget(-amount);
         region.updateDeposit(amount);
+        region.updateOwner(player.getId());
 
         repository.updatePlayerBudget(gameId, player.getId(), player.getBudget());
-        repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), player.getId());
+        repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), region.getOwner());
     }
 
     @Override
@@ -81,7 +111,7 @@ public class GameStateImpl implements GameState {
         region.updateDeposit(-amount);
 
         repository.updatePlayerBudget(gameId, player.getId(), player.getBudget());
-        repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), player.getId());
+        repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), region.getOwner());
     }
 
     @Override
@@ -163,5 +193,18 @@ public class GameStateImpl implements GameState {
             }
         }
         return false;
+    }
+
+    private int calculateHexDistance(int row1, int col1, int row2, int col2) {
+        double z1 = row1 - (col1 - (col1 & 1)) / 2.0;
+        double y1 = -(double) col1 - z1;
+
+        double z2 = row2 - (col2 - (col2 & 1)) / 2.0;
+        double y2 = -(double) col2 - z2;
+
+        return (int) (Math.max(Math.max(
+                Math.abs((double) col2 - (double) col1),
+                Math.abs(y2 - y1)),
+                Math.abs(z2 - z1)));
     }
 }

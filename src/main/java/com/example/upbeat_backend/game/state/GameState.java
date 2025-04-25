@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 public interface GameState {
+    boolean relocate();
+
     boolean move(Keyword direction);
 
     void invest(long amount);
