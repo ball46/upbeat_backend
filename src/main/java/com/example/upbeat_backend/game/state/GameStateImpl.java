@@ -115,18 +115,45 @@ public class GameStateImpl implements GameState {
     }
 
     @Override
-    public boolean shoot(Keyword direction, long damage) {
-        return false;
+    public boolean shoot(Keyword direction, long money) {
+        if (money <= 0) return false;
+
+        CurrentStateDTO currentState = payForCommand();
+        Territory territory = new TerritoryImpl(gameId, repository);
+        Player player = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
+
+        if (money > player.getBudget()) return false;
+
+        int[] newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
+        Region region = territory.getRegion(newPosition[0], newPosition[1]);
+
+        player.updateBudget(-money);
+        region.updateDeposit(-money);
+
+        if (region.getDeposit() <= 0) {
+            Player owner = repository.getPlayer(gameId, region.getOwner());
+            if (region.isSameRegion(owner.getCityCenterRow(), owner.getCityCenterCol())) {
+                owner.updateCityCenter(-1, -1);
+                // TODO: need to change function to know this player is lose
+                repository.removePlayerFromGame(gameId, owner.getId());
+            }
+            region.updateOwner(null);
+        }
+
+        repository.updatePlayerBudget(gameId, player.getId(), player.getBudget());
+        repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), region.getOwner());
+
+        return true;
     }
 
     @Override
-    public long getNearbyInfo(Keyword direction) {
+    public long opponent() {
         return 0;
     }
 
     @Override
-    public boolean isOpponentInDirection(Keyword direction) {
-        return false;
+    public long nearby(Keyword direction) {
+        return 0;
     }
 
     @Override

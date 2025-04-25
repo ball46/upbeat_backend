@@ -50,4 +50,9 @@ public class RegionImpl implements Region {
     public void updateOwner(String ownerId) {
         this.ownerId = ownerId;
     }
+
+    @Override
+    public boolean isSameRegion(int row, int col) {
+        return this.row == row && this.col == col;
+    }
 }
