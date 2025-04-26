@@ -57,7 +57,7 @@ public class GameStateImpl implements GameState {
 
         int[] newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
 
-        if(isValidPosition(newPosition[0], newPosition[1]) &&
+        if(territory.isValidPosition(newPosition[0], newPosition[1]) &&
                 (territory.isWasteland(newPosition[0], newPosition[1]) ||
                         territory.isMyRegion(newPosition[0], newPosition[1], currentState.getCurrentPlayerId()))) {
             repository.updateCurrentPosition(gameId, newPosition[0], newPosition[1]);
@@ -148,7 +148,42 @@ public class GameStateImpl implements GameState {
 
     @Override
     public long opponent() {
-        return 0;
+        CurrentStateDTO currentState = payForCommand();
+        TerritorySizeDTO territorySize = repository.getTerritorySize(gameId);
+        Territory territory = new TerritoryImpl(gameId, repository);
+        Map<String, Region> regionMap = territory.getRegionMap();
+
+        List<Keyword> directions = Keyword.directions();
+        Map<Keyword, Integer> directionValues = new HashMap<>();
+        Map<Long, Keyword> results = new TreeMap<>();
+
+        for (int i = 0; i < directions.size(); i++) {
+            directionValues.put(directions.get(i), i + 1);
+        }
+
+        for (Keyword direction : directions) {
+            int crewRow = currentState.getCurrentRow();
+            int crewCol = currentState.getCurrentCol();
+
+            for (int distance = 1; territory.isValidPosition(crewRow, crewCol, territorySize); distance++) {
+                int[] newPosition = calculateNewPosition(crewRow, crewCol, direction);
+
+                if (!territory.isValidPosition(newPosition[0], newPosition[1], territorySize)) break;
+
+                Region searchRegion = territory.getRegion(newPosition[0], newPosition[1], regionMap);
+
+                if (territory.isRivalLand(searchRegion, currentState.getCurrentPlayerId())) {
+                    long result = (long) distance * 10 + directionValues.get(direction);
+                    results.put(result, direction);
+                    break;
+                }
+
+                crewRow = newPosition[0];
+                crewCol = newPosition[1];
+            }
+        }
+
+        return results.isEmpty() ? 0 : results.keySet().iterator().next();
     }
 
     @Override
@@ -186,13 +221,6 @@ public class GameStateImpl implements GameState {
         };
     }
 
-    private boolean isValidPosition(int row, int col) {
-        TerritorySizeDTO territorySize = repository.getTerritorySize(gameId);
-        int rows = territorySize.getRows();
-        int cols = territorySize.getCols();
-        return row >= 0 && row < rows && col >= 0 && col < cols;
-    }
-
     private CurrentStateDTO payForCommand() {
         CurrentStateDTO currentState = repository.getCurrentState(gameId);
         Player currentPlayer = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
@@ -214,7 +242,7 @@ public class GameStateImpl implements GameState {
 
             Territory territory = new TerritoryImpl(gameId, repository);
 
-            if(isValidPosition(newPosition[0], newPosition[1]) &&
+            if(territory.isValidPosition(newPosition[0], newPosition[1]) &&
                     territory.isMyRegion(newPosition[0], newPosition[1], currentState.getCurrentPlayerId())) {
                 return true;
             }

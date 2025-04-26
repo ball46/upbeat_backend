@@ -55,7 +55,7 @@ public enum Keyword {
     }
 
     public static List<Keyword> directions() {
-        return List.of(UP, DOWN, UPLEFT, UPRIGHT, DOWNLEFT, DOWNRIGHT);
+        return List.of(UP, UPRIGHT, DOWNRIGHT, DOWN, DOWNLEFT, UPLEFT);
     }
 
     public boolean isAction() {
