@@ -1,5 +1,6 @@
 package com.example.upbeat_backend.game.state;
 
+import com.example.upbeat_backend.game.model.Position;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.state.region.Region;
 
@@ -20,9 +21,7 @@ public interface GameState {
 
     long nearby(Keyword direction);
 
-    long getRow();
-
-    long getCol();
+    Position getPosition();
 
     Map<String, Region> getTerritory();
 

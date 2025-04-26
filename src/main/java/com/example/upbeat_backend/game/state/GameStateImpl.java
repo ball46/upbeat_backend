@@ -2,6 +2,7 @@ package com.example.upbeat_backend.game.state;
 
 import com.example.upbeat_backend.game.dto.reids.CurrentStateDTO;
 import com.example.upbeat_backend.game.dto.reids.TerritorySizeDTO;
+import com.example.upbeat_backend.game.model.Position;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.state.player.Player;
 import com.example.upbeat_backend.game.state.region.Region;
@@ -55,12 +56,12 @@ public class GameStateImpl implements GameState {
         CurrentStateDTO currentState = payForCommand();
         Territory territory = new TerritoryImpl(gameId, repository);
 
-        int[] newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
+        Position newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
 
-        if(territory.isValidPosition(newPosition[0], newPosition[1]) &&
-                (territory.isWasteland(newPosition[0], newPosition[1]) ||
-                        territory.isMyRegion(newPosition[0], newPosition[1], currentState.getCurrentPlayerId()))) {
-            repository.updateCurrentPosition(gameId, newPosition[0], newPosition[1]);
+        if(territory.isValidPosition(newPosition.row(), newPosition.col()) &&
+                (territory.isWasteland(newPosition.row(), newPosition.col()) ||
+                        territory.isMyRegion(newPosition.row(), newPosition.col(), currentState.getCurrentPlayerId()))) {
+            repository.updateCurrentPosition(gameId, newPosition.row(), newPosition.col());
             return true;
         }
 
@@ -124,8 +125,8 @@ public class GameStateImpl implements GameState {
 
         if (money > player.getBudget()) return false;
 
-        int[] newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
-        Region region = territory.getRegion(newPosition[0], newPosition[1]);
+        Position newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
+        Region region = territory.getRegion(newPosition.row(), newPosition.col());
 
         player.updateBudget(-money);
         region.updateDeposit(-money);
@@ -166,11 +167,11 @@ public class GameStateImpl implements GameState {
             int crewCol = currentState.getCurrentCol();
 
             for (int distance = 1; territory.isValidPosition(crewRow, crewCol, territorySize); distance++) {
-                int[] newPosition = calculateNewPosition(crewRow, crewCol, direction);
+                Position newPosition = calculateNewPosition(crewRow, crewCol, direction);
 
-                if (!territory.isValidPosition(newPosition[0], newPosition[1], territorySize)) break;
+                if (!territory.isValidPosition(newPosition.row(), newPosition.col(), territorySize)) break;
 
-                Region searchRegion = territory.getRegion(newPosition[0], newPosition[1], regionMap);
+                Region searchRegion = territory.getRegion(newPosition.row(), newPosition.col(), regionMap);
 
                 if (territory.isRivalLand(searchRegion, currentState.getCurrentPlayerId())) {
                     long result = (long) distance * 10 + directionValues.get(direction);
@@ -178,8 +179,8 @@ public class GameStateImpl implements GameState {
                     break;
                 }
 
-                crewRow = newPosition[0];
-                crewCol = newPosition[1];
+                crewRow = newPosition.row();
+                crewCol = newPosition.col();
             }
         }
 
@@ -197,31 +198,27 @@ public class GameStateImpl implements GameState {
         int crewCol = currentState.getCurrentCol();
 
         for (int distance = 1; territory.isValidPosition(crewRow, crewCol, territorySize); distance++) {
-            int[] newPosition = calculateNewPosition(crewRow, crewCol, direction);
+            Position newPosition = calculateNewPosition(crewRow, crewCol, direction);
 
-            if (!territory.isValidPosition(newPosition[0], newPosition[1], territorySize)) break;
+            if (!territory.isValidPosition(newPosition.row(), newPosition.col(), territorySize)) break;
 
-            Region searchRegion = territory.getRegion(newPosition[0], newPosition[1], regionMap);
+            Region searchRegion = territory.getRegion(newPosition.row(), newPosition.col(), regionMap);
 
             if (territory.isRivalLand(searchRegion, currentState.getCurrentPlayerId())) {
                 return (long) 100 * distance + (searchRegion.getDeposit() % 10);
             }
 
-            crewRow = newPosition[0];
-            crewCol = newPosition[1];
+            crewRow = newPosition.row();
+            crewCol = newPosition.col();
         }
 
         return 0;
     }
 
     @Override
-    public long getRow() {
-        return 0;
-    }
-
-    @Override
-    public long getCol() {
-        return 0;
+    public Position getPosition() {
+        CurrentStateDTO currentState = repository.getCurrentState(gameId);
+        return new Position(currentState.getCurrentRow(), currentState.getCurrentCol());
     }
 
     @Override
@@ -230,17 +227,17 @@ public class GameStateImpl implements GameState {
         return territory.getRegionMap();
     }
 
-    private int[] calculateNewPosition(int row, int col, Keyword direction) {
+    private Position calculateNewPosition(int row, int col, Keyword direction) {
         boolean isEvenCol = (col % 2 == 0);
 
         return switch (direction) {
-            case UP -> new int[]{row - 1, col};
-            case DOWN -> new int[]{row + 1, col};
-            case UPLEFT -> isEvenCol ? new int[]{row - 1, col - 1} : new int[]{row, col - 1};
-            case UPRIGHT -> isEvenCol ? new int[]{row - 1, col + 1} : new int[]{row, col + 1};
-            case DOWNLEFT -> isEvenCol ? new int[]{row , col - 1} : new int[]{row - 1, col - 1};
-            case DOWNRIGHT -> isEvenCol ? new int[]{row , col + 1} : new int[]{row + 1, col + 1};
-            default -> new int[]{row, col};
+            case UP -> new Position(row - 1, col);
+            case DOWN -> new Position(row + 1, col);
+            case UPLEFT -> isEvenCol ? new Position(row - 1, col - 1) : new Position(row, col - 1);
+            case UPRIGHT -> isEvenCol ? new Position(row - 1, col + 1) : new Position(row, col + 1);
+            case DOWNLEFT -> isEvenCol ? new Position(row , col - 1) : new Position(row - 1, col - 1);
+            case DOWNRIGHT -> isEvenCol ? new Position(row , col + 1) : new Position(row + 1, col + 1);
+            default -> new Position(row, col);
         };
     }
 
@@ -261,12 +258,12 @@ public class GameStateImpl implements GameState {
         List<Keyword> directions = Keyword.directions();
 
         for (Keyword direction : directions) {
-            int[] newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
+            Position newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
 
             Territory territory = new TerritoryImpl(gameId, repository);
 
-            if(territory.isValidPosition(newPosition[0], newPosition[1]) &&
-                    territory.isMyRegion(newPosition[0], newPosition[1], currentState.getCurrentPlayerId())) {
+            if(territory.isValidPosition(newPosition.row(), newPosition.col()) &&
+                    territory.isMyRegion(newPosition.row(), newPosition.col(), currentState.getCurrentPlayerId())) {
                 return true;
             }
         }

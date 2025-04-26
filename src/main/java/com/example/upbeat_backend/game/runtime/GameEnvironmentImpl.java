@@ -1,6 +1,8 @@
 package com.example.upbeat_backend.game.runtime;
 
 import com.example.upbeat_backend.game.dto.response.event.GameEvent;
+import com.example.upbeat_backend.game.model.Position;
+import com.example.upbeat_backend.game.model.enums.EventType;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.state.GameState;
 import com.example.upbeat_backend.repository.RedisGameStateRepository;
@@ -21,19 +23,26 @@ public class GameEnvironmentImpl extends RedisEnvironmentImpl implements GameEnv
     }
 
     @Override
+    public boolean relocate() {
+        return false;
+    }
+
+    @Override
     public boolean move(Keyword direction) {
         boolean result = gameState.move(direction);
+
         if (result) {
+            Position position = gameState.getPosition();
             Map<String, Object> data = Map.of(
                     "direction", direction.getLexeme(),
                     "success", true,
                     "position", Map.of(
-                            "row", gameState.getRow(),
-                            "col", gameState.getCol()
+                            "row", position.row(),
+                            "col", position.col()
                     )
             );
             GameEvent event = GameEvent.builder()
-                    .eventType("move")
+                    .eventType(EventType.MOVE.getLexeme())
                     .data(data)
                     .timestamp(System.currentTimeMillis())
                     .build();
@@ -58,12 +67,12 @@ public class GameEnvironmentImpl extends RedisEnvironmentImpl implements GameEnv
     }
 
     @Override
-    public long getNearbyInfo(Keyword direction) {
+    public long opponent() {
         return 0;
     }
 
     @Override
-    public boolean isOpponentInDirection(Keyword direction) {
-        return false;
+    public long nearby(Keyword direction) {
+        return 0;
     }
 }
