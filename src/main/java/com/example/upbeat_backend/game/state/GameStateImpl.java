@@ -188,6 +188,29 @@ public class GameStateImpl implements GameState {
 
     @Override
     public long nearby(Keyword direction) {
+        CurrentStateDTO currentState = payForCommand();
+        TerritorySizeDTO territorySize = repository.getTerritorySize(gameId);
+        Territory territory = new TerritoryImpl(gameId, repository);
+        Map<String, Region> regionMap = territory.getRegionMap();
+
+        int crewRow = currentState.getCurrentRow();
+        int crewCol = currentState.getCurrentCol();
+
+        for (int distance = 1; territory.isValidPosition(crewRow, crewCol, territorySize); distance++) {
+            int[] newPosition = calculateNewPosition(crewRow, crewCol, direction);
+
+            if (!territory.isValidPosition(newPosition[0], newPosition[1], territorySize)) break;
+
+            Region searchRegion = territory.getRegion(newPosition[0], newPosition[1], regionMap);
+
+            if (territory.isRivalLand(searchRegion, currentState.getCurrentPlayerId())) {
+                return (long) 100 * distance + (searchRegion.getDeposit() % 10);
+            }
+
+            crewRow = newPosition[0];
+            crewCol = newPosition[1];
+        }
+
         return 0;
     }
 
