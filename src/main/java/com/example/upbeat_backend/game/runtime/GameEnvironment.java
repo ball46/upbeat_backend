@@ -3,17 +3,19 @@ package com.example.upbeat_backend.game.runtime;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 
 public interface GameEnvironment extends Environment {
+    boolean done();
+
     boolean relocate();
 
     boolean move(Keyword direction);
 
-    void invest(long amount);
+    boolean invest(long amount);
 
-    void collect(long amount);
+    boolean collect(long amount);
 
     boolean shoot(Keyword direction, long damage);
 
-    long opponent();
+    boolean opponent();
 
-    long nearby(Keyword direction);
+    boolean nearby(Keyword direction);
 }

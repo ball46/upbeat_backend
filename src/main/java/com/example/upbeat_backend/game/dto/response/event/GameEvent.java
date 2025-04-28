@@ -1,12 +1,11 @@
 package com.example.upbeat_backend.game.dto.response.event;
 
+import com.example.upbeat_backend.game.model.enums.EventType;
 import lombok.Builder;
-
-import java.util.Map;
 
 @Builder
 public record GameEvent(
-        String eventType,
-        Map<String, Object> data,
+        EventType eventType,
+        EventData data,
         long timestamp
 ) {}

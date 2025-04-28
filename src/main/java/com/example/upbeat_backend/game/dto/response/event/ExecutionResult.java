@@ -11,5 +11,6 @@ public record ExecutionResult(
         String gameId,
         String playerId,
         List<GameEvent> events,
+        Map<String, Region> startState,
         Map<String, Region> finalState
 ) {}

@@ -19,6 +19,7 @@ public class PlanInterpreter {
                 .gameId(((GameEnvironmentImpl)env).getGameId())
                 .playerId(((GameEnvironmentImpl)env).getPlayerId())
                 .events(((GameEnvironmentImpl)env).getEvents())
+                .startState(((GameEnvironmentImpl)env).getGameState().getTerritory())
                 .finalState(((GameEnvironmentImpl)env).getGameState().getTerritory())
                 .build();
     }

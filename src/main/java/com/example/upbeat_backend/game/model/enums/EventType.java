@@ -6,12 +6,12 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum EventType {
+    DONE("done"),
     RELOCATE("relocate"),
     MOVE("move"),
     INVEST("invest"),
     COLLECT("collect"),
     SHOOT("shoot"),
-    DONE("done"),
     OPPONENT("opponent"),
     NEARBY("nearby");
 

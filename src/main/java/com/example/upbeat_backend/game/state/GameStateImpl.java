@@ -22,7 +22,7 @@ public class GameStateImpl implements GameState {
     }
 
     @Override
-    public boolean relocate() {
+    public long relocate() {
         CurrentStateDTO currentState = payForCommand();
         Player player = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
         Territory territory = new TerritoryImpl(gameId, repository);
@@ -30,13 +30,13 @@ public class GameStateImpl implements GameState {
         Region cityCenter = territory.getRegion(player.getCityCenterRow(), player.getCityCenterCol());
         Region region = territory.getRegion(currentState.getCurrentRow(), currentState.getCurrentCol());
 
-        if (!territory.isMyRegion(currentState.getCurrentRow(), currentState.getCurrentCol(), player.getId())) return false;
+        if (!territory.isMyRegion(currentState.getCurrentRow(), currentState.getCurrentCol(), player.getId())) return 0;
 
         int distance = calculateHexDistance(cityCenter.getRow(), cityCenter.getCol(), region.getRow(), region.getCol());
 
         long cost = (5L * distance) + 10;
 
-        if (player.getBudget() < cost) return false;
+        if (player.getBudget() < cost) return 0;
 
         player.updateBudget(-cost);
         player.updateCityCenter(currentState.getCurrentRow(), currentState.getCurrentCol());
@@ -48,7 +48,7 @@ public class GameStateImpl implements GameState {
         repository.updateRegion(gameId, cityCenter.getRow(), cityCenter.getCol(), cityCenter.getDeposit(), cityCenter.getOwner());
         repository.updatePlayerBudget(gameId, player.getId(), player.getBudget());
 
-        return true;
+        return cost;
     }
 
     @Override
@@ -69,16 +69,16 @@ public class GameStateImpl implements GameState {
     }
 
     @Override
-    public void invest(long amount) {
-        if (amount <= 0) return;
+    public long invest(long amount) {
+        if (amount <= 0) return 0;
 
         CurrentStateDTO currentState = payForCommand();
 
-        if (!RegionSurrounding(currentState)) return;
+        if (!RegionSurrounding(currentState)) return 0;
 
         Player player = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
 
-        if (player.getBudget() < amount) return;
+        if (player.getBudget() < amount) return 0;
 
         Territory territory = new TerritoryImpl(gameId, repository);
         Region region = territory.getRegion(currentState.getCurrentRow(), currentState.getCurrentCol());
@@ -90,11 +90,12 @@ public class GameStateImpl implements GameState {
 
         repository.updatePlayerBudget(gameId, player.getId(), player.getBudget());
         repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), region.getOwner());
+        return amount;
     }
 
     @Override
-    public void collect(long amount) {
-        if (amount <= 0) return;
+    public long collect(long amount) {
+        if (amount <= 0) return 0;
 
         CurrentStateDTO currentState = payForCommand();
 
@@ -103,9 +104,9 @@ public class GameStateImpl implements GameState {
         Territory territory = new TerritoryImpl(gameId, repository);
         Region region = territory.getRegion(currentState.getCurrentRow(), currentState.getCurrentCol());
 
-        if (!territory.isMyRegion(region, player.getId())) return;
+        if (!territory.isMyRegion(region, player.getId())) return 0;
 
-        if (region.getDeposit() < amount) return;
+        if (region.getDeposit() < amount) return 0;
         else if (region.getDeposit() == amount) region.updateOwner(null);
 
         player.updateBudget(amount);
@@ -113,17 +114,18 @@ public class GameStateImpl implements GameState {
 
         repository.updatePlayerBudget(gameId, player.getId(), player.getBudget());
         repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), region.getOwner());
+        return amount;
     }
 
     @Override
-    public boolean shoot(Keyword direction, long money) {
-        if (money <= 0) return false;
+    public long shoot(Keyword direction, long money) {
+        if (money <= 0) return 0;
 
         CurrentStateDTO currentState = payForCommand();
         Territory territory = new TerritoryImpl(gameId, repository);
         Player player = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
 
-        if (money > player.getBudget()) return false;
+        if (money > player.getBudget()) return 0;
 
         Position newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
         Region region = territory.getRegion(newPosition.row(), newPosition.col());
@@ -144,7 +146,7 @@ public class GameStateImpl implements GameState {
         repository.updatePlayerBudget(gameId, player.getId(), player.getBudget());
         repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), region.getOwner());
 
-        return true;
+        return money;
     }
 
     @Override

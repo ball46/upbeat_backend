@@ -7,15 +7,15 @@ import com.example.upbeat_backend.game.state.region.Region;
 import java.util.Map;
 
 public interface GameState {
-    boolean relocate();
+    long relocate();
 
     boolean move(Keyword direction);
 
-    void invest(long amount);
+    long invest(long amount);
 
-    void collect(long amount);
+    long collect(long amount);
 
-    boolean shoot(Keyword direction, long money);
+    long shoot(Keyword direction, long money);
 
     long opponent();
 
