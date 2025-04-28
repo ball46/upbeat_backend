@@ -12,9 +12,8 @@ public class CollectCommand implements Command {
     @Override
     public Object evaluate(Environment env) {
         if (env instanceof GameEnvironment gameEnv) {
-            long amount = (long) expression.evaluate(env);
-            gameEnv.collect(amount);
-            return null;
+            long amount = expression.evaluateNumber(env);
+            return gameEnv.collect(amount);
         }
         return null;
     }

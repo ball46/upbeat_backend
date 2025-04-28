@@ -15,9 +15,8 @@ public class ShootCommand implements Command {
     @Override
     public Object evaluate(Environment env) {
         if (env instanceof GameEnvironment gameEnv) {
-            long damage = (long) expression.evaluate(env);
-            gameEnv.shoot(direction, damage);
-            return null;
+            long damage = expression.evaluateNumber(env);
+            return gameEnv.shoot(direction, damage);
         }
         return null;
     }

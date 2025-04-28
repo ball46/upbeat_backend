@@ -13,9 +13,8 @@ public class InvestCommand implements Command {
     @Override
     public Object evaluate(Environment env) {
         if (env instanceof GameEnvironment gameEnv) {
-            long amount = (long) expression.evaluate(env);
-            gameEnv.invest(amount);
-            return null;
+            long amount = expression.evaluateNumber(env);
+            return gameEnv.invest(amount);
         }
         return null;
     }
