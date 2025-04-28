@@ -110,7 +110,7 @@ public class GameEnvironmentImpl extends RedisEnvironmentImpl implements GameEnv
     }
 
     @Override
-    public boolean opponent() {
+    public long opponent() {
         long result = gameState.opponent();
 
         EventData data = EventData.Opponent.builder()
@@ -121,11 +121,11 @@ public class GameEnvironmentImpl extends RedisEnvironmentImpl implements GameEnv
         GameEvent event = createEvent(EventType.OPPONENT, data);
         events.add(event);
 
-        return result > 0;
+        return result;
     }
 
     @Override
-    public boolean nearby(Keyword direction) {
+    public long nearby(Keyword direction) {
         long result = gameState.nearby(direction);
 
         EventData data = EventData.Nearby.builder()
@@ -137,7 +137,133 @@ public class GameEnvironmentImpl extends RedisEnvironmentImpl implements GameEnv
         GameEvent event = createEvent(EventType.NEARBY, data);
         events.add(event);
 
-        return result > 0;
+        return result;
+    }
+
+    @Override
+    public long getRows() {
+        long result = gameState.getRows();
+
+        EventData data = EventData.Rows.builder()
+                .row(result)
+                .position(gameState.getPosition())
+                .build();
+        GameEvent event = createEvent(EventType.ROWS, data);
+        events.add(event);
+
+        return result;
+    }
+
+    @Override
+    public long getCols() {
+        long result = gameState.getCols();
+
+        EventData data = EventData.Cols.builder()
+                .col(result)
+                .position(gameState.getPosition())
+                .build();
+        GameEvent event = createEvent(EventType.COLS, data);
+        events.add(event);
+
+        return result;
+    }
+
+    @Override
+    public long getCurrentRow() {
+        long result = gameState.getCurrentRow();
+
+        EventData data = EventData.CurrentRow.builder()
+                .currentRow(result)
+                .position(gameState.getPosition())
+                .build();
+        GameEvent event = createEvent(EventType.CURRENT_ROW, data);
+        events.add(event);
+
+        return result;
+    }
+
+    @Override
+    public long getCurrentCol() {
+        long result = gameState.getCurrentCol();
+
+        EventData data = EventData.CurrentCol.builder()
+                .currentCol(result)
+                .position(gameState.getPosition())
+                .build();
+        GameEvent event = createEvent(EventType.CURRENT_COL, data);
+        events.add(event);
+
+        return result;
+    }
+
+    @Override
+    public long getBudget() {
+        long result = gameState.getBudget();
+
+        EventData data = EventData.Budget.builder()
+                .budget(result)
+                .position(gameState.getPosition())
+                .build();
+        GameEvent event = createEvent(EventType.BUDGET, data);
+        events.add(event);
+
+        return result;
+    }
+
+    @Override
+    public long getDeposit() {
+        long result = gameState.getDeposit();
+
+        EventData data = EventData.Deposit.builder()
+                .deposit(result)
+                .position(gameState.getPosition())
+                .build();
+        GameEvent event = createEvent(EventType.DEPOSIT, data);
+        events.add(event);
+
+        return result;
+    }
+
+    @Override
+    public long getInterest() {
+        long result = gameState.getInterest();
+
+        EventData data = EventData.Interest.builder()
+                .interest(result)
+                .position(gameState.getPosition())
+                .build();
+        GameEvent event = createEvent(EventType.INTEREST, data);
+        events.add(event);
+
+        return result;
+    }
+
+    @Override
+    public long getMaxDeposit() {
+        long result = gameState.getMaxDeposit();
+
+        EventData data = EventData.MaxDeposit.builder()
+                .maxDeposit(result)
+                .position(gameState.getPosition())
+                .build();
+        GameEvent event = createEvent(EventType.MAX_DEPOSIT, data);
+        events.add(event);
+
+        return result;
+    }
+
+    @Override
+    public long getRandom() {
+        long result = gameState.getRandom();
+
+        EventData data = EventData.Random.builder()
+                .random(result)
+                .position(gameState.getPosition())
+                .build();
+        GameEvent event = createEvent(EventType.RANDOM, data);
+        events.add(event);
+
+        return result;
     }
 
     private GameEvent createEvent(EventType eventType, EventData data) {

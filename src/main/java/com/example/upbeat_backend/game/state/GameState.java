@@ -25,4 +25,21 @@ public interface GameState {
 
     Map<String, Region> getTerritory();
 
+    long getRows();
+
+    long getCols();
+
+    long getCurrentRow();
+
+    long getCurrentCol();
+
+    long getBudget();
+
+    long getDeposit();
+
+    long getInterest();
+
+    long getMaxDeposit();
+
+    long getRandom();
 }

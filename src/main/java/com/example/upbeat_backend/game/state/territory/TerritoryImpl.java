@@ -45,6 +45,11 @@ public class TerritoryImpl implements Territory {
     @Override
     public boolean isWasteland(int row, int col) {
         Region region = getRegion(row, col);
+        return isWasteland(region);
+    }
+
+    @Override
+    public boolean isWasteland(Region region) {
         return region.getOwner() == null;
     }
 

@@ -1,6 +1,7 @@
 package com.example.upbeat_backend.game.state;
 
 import com.example.upbeat_backend.game.dto.reids.CurrentStateDTO;
+import com.example.upbeat_backend.game.dto.reids.GameConfigDTO;
 import com.example.upbeat_backend.game.dto.reids.TerritorySizeDTO;
 import com.example.upbeat_backend.game.model.Position;
 import com.example.upbeat_backend.game.model.enums.Keyword;
@@ -227,6 +228,63 @@ public class GameStateImpl implements GameState {
     public Map<String, Region> getTerritory() {
         Territory territory = new TerritoryImpl(gameId, repository);
         return territory.getRegionMap();
+    }
+
+    @Override
+    public long getRows() {
+        TerritorySizeDTO territorySize = repository.getTerritorySize(gameId);
+        return territorySize.getRows();
+    }
+
+    @Override
+    public long getCols() {
+        TerritorySizeDTO territorySize = repository.getTerritorySize(gameId);
+        return territorySize.getCols();
+    }
+
+    @Override
+    public long getCurrentRow() {
+        CurrentStateDTO currentState = repository.getCurrentState(gameId);
+        return currentState.getCurrentRow();
+    }
+
+    @Override
+    public long getCurrentCol() {
+        CurrentStateDTO currentState = repository.getCurrentState(gameId);
+        return currentState.getCurrentCol();
+    }
+
+    @Override
+    public long getBudget() {
+        CurrentStateDTO currentState = repository.getCurrentState(gameId);
+        Player player = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
+        return player.getBudget();
+    }
+
+    @Override
+    public long getDeposit() {
+        CurrentStateDTO currentState = repository.getCurrentState(gameId);
+        Territory territory = new TerritoryImpl(gameId, repository);
+        Region region = territory.getRegion(currentState.getCurrentRow(), currentState.getCurrentCol());
+        return territory.isWasteland(region) ? - region.getDeposit() : region.getDeposit();
+    }
+
+    @Override
+    public long getInterest() {
+        GameConfigDTO gameConfig = repository.getGameConfig(gameId);
+        return gameConfig.getInterestPct();
+    }
+
+    @Override
+    public long getMaxDeposit() {
+        GameConfigDTO gameConfig = repository.getGameConfig(gameId);
+        return gameConfig.getMaxDep();
+    }
+
+    @Override
+    public long getRandom() {
+        Random random = new Random();
+        return random.nextInt(1000);
     }
 
     private Position calculateNewPosition(int row, int col, Keyword direction) {

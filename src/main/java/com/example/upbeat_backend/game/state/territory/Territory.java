@@ -18,6 +18,8 @@ public interface Territory {
 
     boolean isWasteland(int row, int col);
 
+    boolean isWasteland(Region region);
+
     boolean isRivalLand(Region region, String playerId);
 
     boolean isValidPosition(int row, int col);

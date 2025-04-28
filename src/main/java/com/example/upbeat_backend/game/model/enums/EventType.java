@@ -13,7 +13,17 @@ public enum EventType {
     COLLECT("collect"),
     SHOOT("shoot"),
     OPPONENT("opponent"),
-    NEARBY("nearby");
+    NEARBY("nearby"),
+
+    ROWS("rows"),
+    COLS("cols"),
+    CURRENT_ROW("current_row"),
+    CURRENT_COL("current_col"),
+    BUDGET("budget"),
+    DEPOSIT("deposit"),
+    INTEREST("interest"),
+    MAX_DEPOSIT("max_deposit"),
+    RANDOM("random");
 
     private final String lexeme;
 

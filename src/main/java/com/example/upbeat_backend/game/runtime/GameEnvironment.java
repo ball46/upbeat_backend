@@ -15,7 +15,25 @@ public interface GameEnvironment extends Environment {
 
     boolean shoot(Keyword direction, long damage);
 
-    boolean opponent();
+    long opponent();
 
-    boolean nearby(Keyword direction);
+    long nearby(Keyword direction);
+
+    long getRows();
+
+    long getCols();
+
+    long getCurrentRow();
+
+    long getCurrentCol();
+
+    long getBudget();
+
+    long getDeposit();
+
+    long getInterest();
+
+    long getMaxDeposit();
+
+    long getRandom();
 }
