@@ -1,7 +1,9 @@
 package com.example.upbeat_backend.game.state.territory;
 
+import com.example.upbeat_backend.game.dto.reids.GameConfigDTO;
 import com.example.upbeat_backend.game.dto.reids.TerritorySizeDTO;
 import com.example.upbeat_backend.game.state.region.Region;
+import com.example.upbeat_backend.game.state.region.RegionImpl;
 import com.example.upbeat_backend.repository.RedisGameStateRepository;
 
 import java.util.*;
@@ -13,6 +15,23 @@ public class TerritoryImpl implements Territory {
     public TerritoryImpl(String gameId, RedisGameStateRepository repository) {
         this.gameId = gameId;
         this.repository = repository;
+    }
+
+    @Override
+    public Map<String, Region> createTerritory(GameConfigDTO config) {
+        Map<String, Region> regionMap = new HashMap<>();
+        int rows = config.getRows();
+        int cols = config.getCols();
+        long maxDeposits = config.getMaxDep();
+
+        for (int row = 1; row <= rows; row++) {
+            for (int col = 1; col <= cols; col++) {
+                String key = row + ":" + col;
+                Region region = new RegionImpl(maxDeposits, row, col);
+                regionMap.put(key, region);
+            }
+        }
+        return regionMap;
     }
 
     @Override
@@ -69,5 +88,17 @@ public class TerritoryImpl implements Territory {
         int rows = territorySize.getRows();
         int cols = territorySize.getCols();
         return row >= 0 && row < rows && col >= 0 && col < cols;
+    }
+
+    @Override
+    public void clearPlayerOwnership(String gameId, String playerId) {
+        Map<String, Region> regions = getRegionMap();
+        for (Region playerRegion : regions.values()) {
+            if (playerId.equals(playerRegion.getOwner())) {
+                playerRegion.updateOwner(null);
+                repository.updateRegion(gameId, playerRegion.getRow(), playerRegion.getCol(),
+                        playerRegion.getDeposit(), null);
+            }
+        }
     }
 }

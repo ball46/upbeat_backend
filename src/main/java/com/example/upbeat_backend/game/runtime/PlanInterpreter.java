@@ -16,11 +16,11 @@ public class PlanInterpreter {
         }
 
         return ExecutionResult.builder()
-                .gameId(((GameEnvironmentImpl)env).getGameId())
-                .playerId(((GameEnvironmentImpl)env).getPlayerId())
-                .events(((GameEnvironmentImpl)env).getEvents())
-                .startState(((GameEnvironmentImpl)env).getGameState().getTerritory())
-                .finalState(((GameEnvironmentImpl)env).getGameState().getTerritory())
+                .gameId(env.getGameId())
+                .playerId(env.getPlayerId())
+                .events(env.getEvents())
+                .startState(env.getGameState().getTerritory())
+                .finalState(env.getGameState().getTerritory())
                 .build();
     }
 }

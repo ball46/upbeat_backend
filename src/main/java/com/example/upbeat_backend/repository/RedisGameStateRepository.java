@@ -8,6 +8,7 @@ import com.example.upbeat_backend.game.model.enums.GameStatus;
 import com.example.upbeat_backend.game.state.region.*;
 import com.example.upbeat_backend.game.state.player.*;
 import lombok.AllArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -21,14 +22,14 @@ public class RedisGameStateRepository {
     private final RedisTemplate<String, Object> redisTemplate;
 
     // ======== GAME INFO ========
-    public void saveGameInfo(String gameId, GameStatus status, int maxPlayers, int currentTurn) {
+    public void initializeGameInfo(String gameId, int maxPlayers) {
         String key = "game:" + gameId + ":info";
 
         Map<String, Object> gameInfo = new HashMap<>();
-        gameInfo.put("status", status.name());
+        gameInfo.put("status", GameStatus.WAITING_FOR_PLAYERS.name());
         gameInfo.put("createdAt", Instant.now().getEpochSecond());
         gameInfo.put("maxPlayers", maxPlayers);
-        gameInfo.put("currentTurn", currentTurn);
+        gameInfo.put("currentTurn", 1);
         gameInfo.put("lastUpdatedAt", Instant.now().getEpochSecond());
 
         redisTemplate.opsForHash().putAll(key, gameInfo);
@@ -65,6 +66,27 @@ public class RedisGameStateRepository {
                 .currentTurn(currentTurn)
                 .lastUpdateAt(lastUpdatedAt)
                 .build();
+    }
+
+    public List<String> getPlayersWithCityCenters(String gameId) {
+        List<String> activePlayers = new ArrayList<>();
+        List<String> allPlayers = getGamePlayers(gameId);
+
+        for (String playerId : allPlayers) {
+            Player player = getPlayer(gameId, playerId);
+            if (player != null && player.getCityCenterRow() >= 0 && player.getCityCenterCol() >= 0) {
+                activePlayers.add(playerId);
+            }
+        }
+
+        return activePlayers;
+    }
+
+    public void setGameWinner(String gameId, String playerId) {
+        String key = "game:" + gameId + ":info";
+        redisTemplate.opsForHash().put(key, "winner", playerId);
+        redisTemplate.opsForHash().put(key, "status", GameStatus.FINISHED.name());
+        redisTemplate.opsForHash().put(key, "lastUpdatedAt", Instant.now().getEpochSecond());
     }
 
     // ======== GAME CONFIGURATION ========
@@ -111,25 +133,37 @@ public class RedisGameStateRepository {
     // ======== PLAYERS ========
     public void addPlayerToGame(String gameId, String playerId) {
         String key = "game:" + gameId + ":players";
-        redisTemplate.opsForSet().add(key, playerId);
+        redisTemplate.opsForList().rightPush(key, playerId);
     }
 
-    public Set<String> getGamePlayers(String gameId) {
+    public List<String> getGamePlayers(String gameId) {
         String key = "game:" + gameId + ":players";
-        Set<Object> objects = redisTemplate.opsForSet().members(key);
-        if (objects == null) {
-            return Collections.emptySet();
+        return getStrings(key);
+    }
+
+    @NotNull
+    private List<String> getStrings(String key) {
+        List<Object> plans = redisTemplate.opsForList().range(key, 0, -1);
+        if (plans == null) {
+            return Collections.emptyList();
         }
-        Set<String> result = new HashSet<>();
-        for (Object obj : objects) {
-            result.add(obj.toString());
+        List<String> result = new ArrayList<>();
+        for (Object plan : plans) {
+            result.add(plan.toString());
         }
         return result;
     }
 
     public void removePlayerFromGame(String gameId, String playerId) {
         String key = "game:" + gameId + ":players";
-        redisTemplate.opsForSet().remove(key, playerId);
+        List<Object> players = redisTemplate.opsForList().range(key, 0, -1);
+        if (players != null) {
+            players.remove(playerId);
+            redisTemplate.delete(key);
+            for (Object player : players) {
+                redisTemplate.opsForList().rightPush(key, player.toString());
+            }
+        }
     }
 
     // ======== PLAYER DATA ========
@@ -173,26 +207,14 @@ public class RedisGameStateRepository {
 
     // ======== PLAYER PLANS ========
     public void savePlayerPlan(String gameId, String playerId, String plan) {
-        String key = "game:" + gameId + ":player:" + playerId + ":plans";
-        redisTemplate.opsForList().rightPush(key, plan);
+        String key = "game:" + gameId + ":player:" + playerId + ":plan";
+        redisTemplate.opsForValue().set(key, plan);
     }
 
-    public void clearPlayerPlans(String gameId, String playerId) {
-        String key = "game:" + gameId + ":player:" + playerId + ":plans";
-        redisTemplate.delete(key);
-    }
-
-    public List<String> getPlayerPlans(String gameId, String playerId) {
-        String key = "game:" + gameId + ":player:" + playerId + ":plans";
-        List<Object> plans = redisTemplate.opsForList().range(key, 0, -1);
-        if (plans == null) {
-            return Collections.emptyList();
-        }
-        List<String> result = new ArrayList<>();
-        for (Object plan : plans) {
-            result.add(plan.toString());
-        }
-        return result;
+    public String getPlayerPlan(String gameId, String playerId) {
+        String key = "game:" + gameId + ":player:" + playerId + ":plan";
+        Object plan = redisTemplate.opsForValue().get(key);
+        return plan != null ? plan.toString() : null;
     }
 
     // ======== PLAYER VARIABLES ========
@@ -340,8 +362,11 @@ public class RedisGameStateRepository {
     }
 
     public void updateCurrentPlayer(String gameId, String playerId) {
+        Player player = getPlayer(gameId, playerId);
         String key = "game:" + gameId + ":currentState";
         redisTemplate.opsForHash().put(key, "currentPlayerId", playerId);
+        redisTemplate.opsForHash().put(key, "currentRow", player.getCityCenterRow());
+        redisTemplate.opsForHash().put(key, "currentCol", player.getCityCenterCol());
     }
 
     public CurrentStateDTO getCurrentState(String gameId) {
@@ -371,7 +396,7 @@ public class RedisGameStateRepository {
         if (playerIds != null) {
             for (Object playerId : playerIds) {
                 String playerKey = "game:" + gameId + ":player:" + playerId;
-                String playerPlansKey = playerKey + ":plans";
+                String playerPlansKey = playerKey + ":plan";
                 String playerVarsKey = playerKey + ":vars";
                 redisTemplate.delete(Arrays.asList(playerKey, playerPlansKey, playerVarsKey));
             }

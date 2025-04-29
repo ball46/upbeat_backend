@@ -2,10 +2,12 @@ package com.example.upbeat_backend.game.state;
 
 import com.example.upbeat_backend.game.dto.reids.CurrentStateDTO;
 import com.example.upbeat_backend.game.dto.reids.GameConfigDTO;
+import com.example.upbeat_backend.game.dto.reids.GameInfoDTO;
 import com.example.upbeat_backend.game.dto.reids.TerritorySizeDTO;
 import com.example.upbeat_backend.game.model.Position;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.state.player.Player;
+import com.example.upbeat_backend.game.state.player.PlayerImpl;
 import com.example.upbeat_backend.game.state.region.Region;
 import com.example.upbeat_backend.game.state.territory.Territory;
 import com.example.upbeat_backend.game.state.territory.TerritoryImpl;
@@ -135,13 +137,16 @@ public class GameStateImpl implements GameState {
         region.updateDeposit(-money);
 
         if (region.getDeposit() <= 0) {
-            Player owner = repository.getPlayer(gameId, region.getOwner());
-            if (region.isSameRegion(owner.getCityCenterRow(), owner.getCityCenterCol())) {
-                owner.updateCityCenter(-1, -1);
-                // TODO: need to change function to know this player is lose
-                repository.removePlayerFromGame(gameId, owner.getId());
+            String ownerId = region.getOwner();
+            if (ownerId != null) {
+                Player owner = repository.getPlayer(gameId, region.getOwner());
+                if (region.isSameRegion(owner.getCityCenterRow(), owner.getCityCenterCol())) {
+                    owner.updateCityCenter(-1, -1);
+                    repository.removePlayerFromGame(gameId, owner.getId());
+                    territory.clearPlayerOwnership(gameId, ownerId);
+                }
+                region.updateOwner(null);
             }
-            region.updateOwner(null);
         }
 
         repository.updatePlayerBudget(gameId, player.getId(), player.getBudget());
@@ -287,6 +292,27 @@ public class GameStateImpl implements GameState {
         return random.nextInt(1000);
     }
 
+    public void calculateInterest() {
+        Territory territory = new TerritoryImpl(gameId, repository);
+        Map<String, Region> regions = territory.getRegionMap();
+
+        for (Region region : regions.values()) {
+            if (territory.isWasteland(region)) continue;
+            double percent = calculateBaseInterestPercent(region.getDeposit());
+            double interest = region.getDeposit() * percent / 100.0;
+            region.updateDeposit(Math.round(interest));
+            repository.updateRegion(gameId, region.getRow(), region.getCol(), region.getDeposit(), region.getOwner());
+        }
+    }
+
+    private double calculateBaseInterestPercent(long deposit) {
+        GameConfigDTO gameConfig = repository.getGameConfig(gameId);
+        long interestRate = gameConfig.getInterestPct();
+        GameInfoDTO gameInfo = repository.getGameInfo(gameId);
+        int turn = gameInfo.getCurrentTurn();
+        return interestRate * Math.log10(deposit) * Math.log(turn);
+    }
+
     private Position calculateNewPosition(int row, int col, Keyword direction) {
         boolean isEvenCol = (col % 2 == 0);
 
@@ -341,5 +367,39 @@ public class GameStateImpl implements GameState {
                 Math.abs((double) col2 - (double) col1),
                 Math.abs(y2 - y1)),
                 Math.abs(z2 - z1)));
+    }
+
+    public void initialize() {
+        GameConfigDTO config = repository.getGameConfig(gameId);
+        List<String> players = repository.getGamePlayers(gameId);
+        Territory territory = new TerritoryImpl(gameId, repository);
+        Map<String, Region> regionMap = territory.createTerritory(config);
+        String firstPlayerId = players.getFirst();
+
+        for(String playerId : players) {
+            Position cityCenter;
+            Region region;
+            do {
+                cityCenter = randomCityCenter(config.getRows(), config.getCols());
+                region = territory.getRegion(cityCenter.row(), cityCenter.col(), regionMap);
+            } while(!territory.isWasteland(region));
+
+            Player player = new PlayerImpl(playerId, "", config.getInitBudget(), cityCenter.row(), cityCenter.col());
+            region.updateOwner(player.getId());
+
+            repository.savePlayer(gameId, player);
+            repository.saveRegion(gameId, region);
+
+            if (playerId.equals(firstPlayerId)) {
+                repository.saveCurrentState(gameId, player.getId(), player.getCityCenterRow(), player.getCityCenterCol());
+            }
+        }
+    }
+
+    private Position randomCityCenter(int rows, int cols) {
+        Random random = new Random();
+        int row = random.nextInt(rows) + 1;
+        int col = random.nextInt(cols) + 1;
+        return new Position(row, col);
     }
 }

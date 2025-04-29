@@ -6,11 +6,9 @@ import com.example.upbeat_backend.game.model.enums.EventType;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.state.GameState;
 import com.example.upbeat_backend.repository.RedisGameStateRepository;
-import lombok.Getter;
 
 import java.util.*;
 
-@Getter
 public class GameEnvironmentImpl extends RedisEnvironmentImpl implements GameEnvironment {
     private final GameState gameState;
     private final List<GameEvent> events = new ArrayList<>();
@@ -20,6 +18,21 @@ public class GameEnvironmentImpl extends RedisEnvironmentImpl implements GameEnv
         super(repository, gameId, playerId);
         this.gameState = gameState;
         this.playerId = playerId;
+    }
+
+    @Override
+    public GameState getGameState() {
+        return gameState;
+    }
+
+    @Override
+    public List<GameEvent> getEvents() {
+        return events;
+    }
+
+    @Override
+    public String getPlayerId() {
+        return playerId;
     }
 
     @Override
