@@ -2,6 +2,7 @@ package com.example.upbeat_backend.game.service;
 
 import com.example.upbeat_backend.game.dto.reids.GameConfigDTO;
 import com.example.upbeat_backend.game.dto.reids.GameInfoDTO;
+import com.example.upbeat_backend.game.dto.response.event.ExecutionResult;
 import com.example.upbeat_backend.game.dto.response.event.GameEvent;
 import com.example.upbeat_backend.game.model.enums.GameStatus;
 import com.example.upbeat_backend.game.plans.parser.Parser;
@@ -11,6 +12,7 @@ import com.example.upbeat_backend.game.plans.tokenizer.TokenizerImpl;
 import com.example.upbeat_backend.game.runtime.GameEnvironmentImpl;
 import com.example.upbeat_backend.game.state.GameState;
 import com.example.upbeat_backend.game.state.GameStateImpl;
+import com.example.upbeat_backend.game.state.region.Region;
 import com.example.upbeat_backend.repository.RedisGameStateRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -57,7 +59,7 @@ public class GameService {
         gameState.initialize();
     }
 
-    public List<GameEvent> executePlayerPlan(String gameId, String playerId) {
+    public ExecutionResult executePlayerPlan(String gameId, String playerId) {
         String plan = repository.getPlayerPlan(gameId, playerId);
         if (plan == null) {
             throw new IllegalArgumentException("Plan cannot be null");
@@ -65,11 +67,13 @@ public class GameService {
         return executePlayerPlan(gameId, playerId, plan);
     }
 
-    public List<GameEvent> executePlayerPlan(String gameId, String playerId, String plan) {
+    public ExecutionResult executePlayerPlan(String gameId, String playerId, String plan) {
         repository.savePlayerPlan(gameId, playerId, plan);
 
         GameState gameState = new GameStateImpl(gameId, repository);
         GameEnvironmentImpl environment = new GameEnvironmentImpl(repository, gameId, gameState, playerId);
+
+        Map<String, Region> startState = gameState.getTerritory();
 
         Tokenizer tokenizer = new TokenizerImpl(plan);
         Parser parser = new ParserImpl(tokenizer);
@@ -77,9 +81,21 @@ public class GameService {
 
         checkGameResult(gameId);
 
-        nextTurn(gameId);
+        String nextPlayerId = nextTurn(gameId);
+        GameInfoDTO gameInfo = repository.getGameInfo(gameId);
+        GameStatus gameStatus = gameInfo.getGameStatus();
+        List<GameEvent> events = environment.getEvents();
+        Map<String, Region> finalState = gameState.getTerritory();
 
-        return environment.getEvents();
+        return ExecutionResult.builder()
+                .gameId(gameId)
+                .playerId(playerId)
+                .nextPlayerId(nextPlayerId)
+                .gameStatus(gameStatus)
+                .events(events)
+                .startState(startState)
+                .finalState(finalState)
+                .build();
     }
 
     private void checkGameResult(String gameId) {
@@ -89,7 +105,7 @@ public class GameService {
         }
     }
 
-    private void nextTurn(String gameId) {
+    private String nextTurn(String gameId) {
         List<String> players = repository.getGamePlayers(gameId);
         String currentPlayerId = repository.getCurrentState(gameId).getCurrentPlayerId();
 
@@ -104,6 +120,8 @@ public class GameService {
         }
 
         repository.updateCurrentPlayer(gameId, nextPlayerId);
+
+        return nextPlayerId;
     }
 
     private void calculateInterest(String gameId) {

@@ -142,7 +142,7 @@ public class GameStateImpl implements GameState {
                 Player owner = repository.getPlayer(gameId, region.getOwner());
                 if (region.isSameRegion(owner.getCityCenterRow(), owner.getCityCenterCol())) {
                     owner.updateCityCenter(-1, -1);
-                    repository.removePlayerFromGame(gameId, owner.getId());
+                    repository.savePlayer(gameId, owner);
                     territory.clearPlayerOwnership(gameId, ownerId);
                 }
                 region.updateOwner(null);

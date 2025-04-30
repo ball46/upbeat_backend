@@ -26,6 +26,7 @@ public class RedisGameStateRepository {
         String key = "game:" + gameId + ":info";
 
         Map<String, Object> gameInfo = new HashMap<>();
+        gameInfo.put("winner", null);
         gameInfo.put("status", GameStatus.WAITING_FOR_PLAYERS.name());
         gameInfo.put("createdAt", Instant.now().getEpochSecond());
         gameInfo.put("maxPlayers", maxPlayers);
@@ -53,6 +54,7 @@ public class RedisGameStateRepository {
 
         if (data.isEmpty()) return null;
 
+        String winner = (String) data.get("winner");
         GameStatus status = GameStatus.valueOf((String) data.get("status"));
         Timestamp createdAt = new Timestamp(((Number) data.get("createdAt")).longValue());
         int maxPlayers = ((Number) data.get("maxPlayers")).intValue();
@@ -62,6 +64,7 @@ public class RedisGameStateRepository {
         return GameInfoDTO.builder()
                 .gameStatus(status)
                 .createAt(createdAt)
+                .winner(winner)
                 .maxPlayers(maxPlayers)
                 .currentTurn(currentTurn)
                 .lastUpdateAt(lastUpdatedAt)

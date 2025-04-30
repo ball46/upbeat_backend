@@ -11,6 +11,7 @@ import java.sql.Timestamp;
 public class GameInfoDTO {
     private GameStatus gameStatus;
     private Timestamp createAt;
+    private String winner;
     private long maxPlayers;
     private int currentTurn;
     private Timestamp lastUpdateAt;
