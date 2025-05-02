@@ -52,7 +52,6 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -169,7 +168,6 @@ public class LoginHistoryControllerTest {
                             SecurityContextHolder.getContext().setAuthentication(auth);
                             return request;
                         }))
-                .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.content[0].ipAddress").value("192.168.1.1"))
@@ -203,7 +201,6 @@ public class LoginHistoryControllerTest {
         mockMvc.perform(get("/login-history/user/{userId}/limit", targetUserId)
                         .param("page", "0")
                         .param("size", "10"))
-                .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.content[0].ipAddress").value("192.168.1.1"));

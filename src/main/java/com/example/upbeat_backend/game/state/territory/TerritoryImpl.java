@@ -5,17 +5,14 @@ import com.example.upbeat_backend.game.dto.reids.TerritorySizeDTO;
 import com.example.upbeat_backend.game.state.region.Region;
 import com.example.upbeat_backend.game.state.region.RegionImpl;
 import com.example.upbeat_backend.repository.RedisGameStateRepository;
+import lombok.AllArgsConstructor;
 
 import java.util.*;
 
+@AllArgsConstructor
 public class TerritoryImpl implements Territory {
     private final String gameId;
     private final RedisGameStateRepository repository;
-
-    public TerritoryImpl(String gameId, RedisGameStateRepository repository) {
-        this.gameId = gameId;
-        this.repository = repository;
-    }
 
     @Override
     public Map<String, Region> createTerritory(GameConfigDTO config) {
