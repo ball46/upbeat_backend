@@ -55,7 +55,7 @@ public class TerritoryImpl implements Territory {
 
     @Override
     public boolean isMyRegion(Region region, String playerId) {
-        return region.getOwner().equals(playerId);
+        return !isWasteland(region) && region.getOwner().equals(playerId);
     }
 
     @Override
@@ -71,7 +71,7 @@ public class TerritoryImpl implements Territory {
 
     @Override
     public boolean isRivalLand(Region region, String playerId) {
-        return region.getOwner() != null && !region.getOwner().equals(playerId);
+        return !isWasteland(region) && !region.getOwner().equals(playerId);
     }
 
     @Override
@@ -84,7 +84,7 @@ public class TerritoryImpl implements Territory {
     public boolean isValidPosition(int row, int col, TerritorySizeDTO territorySize) {
         int rows = territorySize.getRows();
         int cols = territorySize.getCols();
-        return row >= 0 && row < rows && col >= 0 && col < cols;
+        return row > 0 && row <= rows && col > 0 && col <= cols;
     }
 
     @Override

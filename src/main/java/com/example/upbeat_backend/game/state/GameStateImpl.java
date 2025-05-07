@@ -12,21 +12,22 @@ import com.example.upbeat_backend.game.state.region.Region;
 import com.example.upbeat_backend.game.state.territory.Territory;
 import com.example.upbeat_backend.game.state.territory.TerritoryImpl;
 import com.example.upbeat_backend.repository.RedisGameStateRepository;
+import com.example.upbeat_backend.service.UserService;
+import lombok.AllArgsConstructor;
 
 import java.util.*;
 
+@AllArgsConstructor
 public class GameStateImpl implements GameState {
     private final String gameId;
     private final RedisGameStateRepository repository;
-
-    public GameStateImpl(String gameId, RedisGameStateRepository repository) {
-        this.gameId = gameId;
-        this.repository = repository;
-    }
+    private final UserService userService;
 
     @Override
     public long relocate() {
-        CurrentStateDTO currentState = payForCommand();
+        Optional<CurrentStateDTO> data = payForCommand();
+        if (data.isEmpty()) return 0;
+        CurrentStateDTO currentState = data.get();
         Player player = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
         Territory territory = new TerritoryImpl(gameId, repository);
 
@@ -56,7 +57,9 @@ public class GameStateImpl implements GameState {
 
     @Override
     public boolean move(Keyword direction) {
-        CurrentStateDTO currentState = payForCommand();
+        Optional<CurrentStateDTO> data = payForCommand();
+        if (data.isEmpty()) return false;
+        CurrentStateDTO currentState = data.get();
         Territory territory = new TerritoryImpl(gameId, repository);
 
         Position newPosition = calculateNewPosition(currentState.getCurrentRow(), currentState.getCurrentCol(), direction);
@@ -75,7 +78,9 @@ public class GameStateImpl implements GameState {
     public long invest(long amount) {
         if (amount <= 0) return 0;
 
-        CurrentStateDTO currentState = payForCommand();
+        Optional<CurrentStateDTO> data = payForCommand();
+        if (data.isEmpty()) return 0;
+        CurrentStateDTO currentState = data.get();
 
         if (!RegionSurrounding(currentState)) return 0;
 
@@ -100,7 +105,9 @@ public class GameStateImpl implements GameState {
     public long collect(long amount) {
         if (amount <= 0) return 0;
 
-        CurrentStateDTO currentState = payForCommand();
+        Optional<CurrentStateDTO> data = payForCommand();
+        if (data.isEmpty()) return 0;
+        CurrentStateDTO currentState = data.get();
 
         Player player = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
 
@@ -124,7 +131,9 @@ public class GameStateImpl implements GameState {
     public long shoot(Keyword direction, long money) {
         if (money <= 0) return 0;
 
-        CurrentStateDTO currentState = payForCommand();
+        Optional<CurrentStateDTO> data = payForCommand();
+        if (data.isEmpty()) return 0;
+        CurrentStateDTO currentState = data.get();
         Territory territory = new TerritoryImpl(gameId, repository);
         Player player = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
 
@@ -157,10 +166,9 @@ public class GameStateImpl implements GameState {
 
     @Override
     public long opponent() {
-        CurrentStateDTO currentState = payForCommand();
-        TerritorySizeDTO territorySize = repository.getTerritorySize(gameId);
-        Territory territory = new TerritoryImpl(gameId, repository);
-        Map<String, Region> regionMap = territory.getRegionMap();
+        Optional<CurrentStateDTO> data = payForCommand();
+        if (data.isEmpty()) return 0;
+        CurrentStateDTO currentState = data.get();
 
         List<Keyword> directions = Keyword.directions();
         Map<Keyword, Integer> directionValues = new HashMap<>();
@@ -171,24 +179,14 @@ public class GameStateImpl implements GameState {
         }
 
         for (Keyword direction : directions) {
-            int crewRow = currentState.getCurrentRow();
-            int crewCol = currentState.getCurrentCol();
+            Map<Integer, Region> foundRegions = traverseDirection(direction,
+                    currentState.getCurrentRow(), currentState.getCurrentCol(),
+                    currentState.getCurrentPlayerId());
 
-            for (int distance = 1; territory.isValidPosition(crewRow, crewCol, territorySize); distance++) {
-                Position newPosition = calculateNewPosition(crewRow, crewCol, direction);
-
-                if (!territory.isValidPosition(newPosition.row(), newPosition.col(), territorySize)) break;
-
-                Region searchRegion = territory.getRegion(newPosition.row(), newPosition.col(), regionMap);
-
-                if (territory.isRivalLand(searchRegion, currentState.getCurrentPlayerId())) {
-                    long result = (long) distance * 10 + directionValues.get(direction);
-                    results.put(result, direction);
-                    break;
-                }
-
-                crewRow = newPosition.row();
-                crewCol = newPosition.col();
+            if (!foundRegions.isEmpty()) {
+                Integer distance = foundRegions.keySet().iterator().next();
+                long result = (long) directionValues.get(direction) * 10 + distance;
+                results.put(result, direction);
             }
         }
 
@@ -197,27 +195,18 @@ public class GameStateImpl implements GameState {
 
     @Override
     public long nearby(Keyword direction) {
-        CurrentStateDTO currentState = payForCommand();
-        TerritorySizeDTO territorySize = repository.getTerritorySize(gameId);
-        Territory territory = new TerritoryImpl(gameId, repository);
-        Map<String, Region> regionMap = territory.getRegionMap();
+        Optional<CurrentStateDTO> data = payForCommand();
+        if (data.isEmpty()) return 0;
+        CurrentStateDTO currentState = data.get();
 
-        int crewRow = currentState.getCurrentRow();
-        int crewCol = currentState.getCurrentCol();
+        Map<Integer, Region> foundRegions = traverseDirection(direction,
+                currentState.getCurrentRow(), currentState.getCurrentCol(),
+                currentState.getCurrentPlayerId());
 
-        for (int distance = 1; territory.isValidPosition(crewRow, crewCol, territorySize); distance++) {
-            Position newPosition = calculateNewPosition(crewRow, crewCol, direction);
-
-            if (!territory.isValidPosition(newPosition.row(), newPosition.col(), territorySize)) break;
-
-            Region searchRegion = territory.getRegion(newPosition.row(), newPosition.col(), regionMap);
-
-            if (territory.isRivalLand(searchRegion, currentState.getCurrentPlayerId())) {
-                return (long) 100 * distance + (searchRegion.getDeposit() % 10);
-            }
-
-            crewRow = newPosition.row();
-            crewCol = newPosition.col();
+        if (!foundRegions.isEmpty()) {
+            Integer distance = foundRegions.keySet().iterator().next();
+            Region region = foundRegions.get(distance);
+            return (long) 100 * distance + (region.getDeposit() % 10);
         }
 
         return 0;
@@ -313,6 +302,41 @@ public class GameStateImpl implements GameState {
         return interestRate * Math.log10(deposit) * Math.log(turn);
     }
 
+    public void initialize() {
+        GameConfigDTO config = repository.getGameConfig(gameId);
+        List<String> players = repository.getGamePlayers(gameId);
+        Territory territory = new TerritoryImpl(gameId, repository);
+        Map<String, Region> regionMap = territory.createTerritory(config);
+        String firstPlayerId = players.getFirst();
+
+        for(String playerId : players) {
+            Position cityCenter;
+            Region region;
+            do {
+                cityCenter = randomCityCenter(config.getRows(), config.getCols());
+                region = territory.getRegion(cityCenter.row(), cityCenter.col(), regionMap);
+            } while(!territory.isWasteland(region));
+
+            String playerName = userService.getUserById(playerId).getUsername();
+            Player player = new PlayerImpl(playerId, playerName, config.getInitBudget(), cityCenter.row(), cityCenter.col());
+            region.updateOwner(player.getId());
+
+            repository.savePlayer(gameId, player);
+            repository.saveRegion(gameId, region);
+
+            if (playerId.equals(firstPlayerId)) {
+                repository.saveCurrentState(gameId, player.getId(), player.getCityCenterRow(), player.getCityCenterCol());
+            }
+        }
+    }
+
+    private Position randomCityCenter(int rows, int cols) {
+        Random random = new Random();
+        int row = random.nextInt(rows) + 1;
+        int col = random.nextInt(cols) + 1;
+        return new Position(row, col);
+    }
+
     private Position calculateNewPosition(int row, int col, Keyword direction) {
         boolean isEvenCol = (col % 2 == 0);
 
@@ -321,23 +345,23 @@ public class GameStateImpl implements GameState {
             case DOWN -> new Position(row + 1, col);
             case UPLEFT -> isEvenCol ? new Position(row - 1, col - 1) : new Position(row, col - 1);
             case UPRIGHT -> isEvenCol ? new Position(row - 1, col + 1) : new Position(row, col + 1);
-            case DOWNLEFT -> isEvenCol ? new Position(row , col - 1) : new Position(row - 1, col - 1);
+            case DOWNLEFT -> isEvenCol ? new Position(row , col - 1) : new Position(row + 1, col - 1);
             case DOWNRIGHT -> isEvenCol ? new Position(row , col + 1) : new Position(row + 1, col + 1);
             default -> new Position(row, col);
         };
     }
 
-    private CurrentStateDTO payForCommand() {
+    private Optional<CurrentStateDTO> payForCommand() {
         CurrentStateDTO currentState = repository.getCurrentState(gameId);
         Player currentPlayer = repository.getPlayer(gameId, currentState.getCurrentPlayerId());
 
         if (currentPlayer.getBudget() <= 0) {
-            throw new IllegalStateException("Not enough budget to pay for command");
+            return Optional.empty();
         }
 
         repository.incrementPlayerBudget(gameId, currentState.getCurrentPlayerId(), - 1);
 
-        return currentState;
+        return Optional.of(currentState);
     }
 
     private boolean RegionSurrounding(CurrentStateDTO currentState) {
@@ -369,37 +393,31 @@ public class GameStateImpl implements GameState {
                 Math.abs(z2 - z1)));
     }
 
-    public void initialize() {
-        GameConfigDTO config = repository.getGameConfig(gameId);
-        List<String> players = repository.getGamePlayers(gameId);
+    private Map<Integer, Region> traverseDirection(Keyword direction, int currentRow, int currentCol, String currentPlayerId) {
+        TerritorySizeDTO territorySize = repository.getTerritorySize(gameId);
         Territory territory = new TerritoryImpl(gameId, repository);
-        Map<String, Region> regionMap = territory.createTerritory(config);
-        String firstPlayerId = players.getFirst();
+        Map<String, Region> regionMap = territory.getRegionMap();
 
-        for(String playerId : players) {
-            Position cityCenter;
-            Region region;
-            do {
-                cityCenter = randomCityCenter(config.getRows(), config.getCols());
-                region = territory.getRegion(cityCenter.row(), cityCenter.col(), regionMap);
-            } while(!territory.isWasteland(region));
+        Map<Integer, Region> foundRegions = new HashMap<>();
+        int crewRow = currentRow;
+        int crewCol = currentCol;
 
-            Player player = new PlayerImpl(playerId, "", config.getInitBudget(), cityCenter.row(), cityCenter.col());
-            region.updateOwner(player.getId());
+        for (int distance = 1; territory.isValidPosition(crewRow, crewCol, territorySize); distance++) {
+            Position newPosition = calculateNewPosition(crewRow, crewCol, direction);
 
-            repository.savePlayer(gameId, player);
-            repository.saveRegion(gameId, region);
+            if (!territory.isValidPosition(newPosition.row(), newPosition.col(), territorySize)) break;
 
-            if (playerId.equals(firstPlayerId)) {
-                repository.saveCurrentState(gameId, player.getId(), player.getCityCenterRow(), player.getCityCenterCol());
+            Region searchRegion = territory.getRegion(newPosition.row(), newPosition.col(), regionMap);
+
+            if (territory.isRivalLand(searchRegion, currentPlayerId)) {
+                foundRegions.put(distance, searchRegion);
+                break;
             }
-        }
-    }
 
-    private Position randomCityCenter(int rows, int cols) {
-        Random random = new Random();
-        int row = random.nextInt(rows) + 1;
-        int col = random.nextInt(cols) + 1;
-        return new Position(row, col);
+            crewRow = newPosition.row();
+            crewCol = newPosition.col();
+        }
+
+        return foundRegions;
     }
 }

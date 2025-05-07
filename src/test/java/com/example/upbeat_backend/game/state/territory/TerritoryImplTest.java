@@ -167,12 +167,12 @@ class TerritoryImplTest {
         when(repository.getTerritorySize(GAME_ID)).thenReturn(size);
 
         assertThat(territory.isValidPosition(-1, 5)).isFalse();
-        assertThat(territory.isValidPosition(5, 10)).isFalse();
-        assertThat(territory.isValidPosition(10, 5)).isFalse();
+        assertThat(territory.isValidPosition(5, 11)).isFalse();
+        assertThat(territory.isValidPosition(11, 5)).isFalse();
 
         assertThat(territory.isValidPosition(-1, 5, size)).isFalse();
-        assertThat(territory.isValidPosition(5, 10, size)).isFalse();
-        assertThat(territory.isValidPosition(10, 5, size)).isFalse();
+        assertThat(territory.isValidPosition(5, 11, size)).isFalse();
+        assertThat(territory.isValidPosition(11, 5, size)).isFalse();
     }
 
     @Test

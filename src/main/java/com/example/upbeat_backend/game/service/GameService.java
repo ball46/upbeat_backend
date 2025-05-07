@@ -14,7 +14,9 @@ import com.example.upbeat_backend.game.state.GameState;
 import com.example.upbeat_backend.game.state.GameStateImpl;
 import com.example.upbeat_backend.game.state.region.Region;
 import com.example.upbeat_backend.repository.RedisGameStateRepository;
+import com.example.upbeat_backend.service.UserService;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -23,6 +25,7 @@ import java.util.*;
 @AllArgsConstructor
 public class GameService {
     private final RedisGameStateRepository repository;
+    private UserService userService;
 
     public String createGame(GameConfigDTO config, int maxPlayers) {
         String gameId = UUID.randomUUID().toString();
@@ -55,7 +58,7 @@ public class GameService {
         if (gameInfo.getGameStatus() != GameStatus.IN_PROGRESS) {
             throw new IllegalStateException("Game cannot be initialized");
         }
-        GameStateImpl gameState = new GameStateImpl(gameId, repository);
+        GameStateImpl gameState = new GameStateImpl(gameId, repository, userService);
         gameState.initialize();
     }
 
@@ -70,7 +73,7 @@ public class GameService {
     public ExecutionResult executePlayerPlan(String gameId, String playerId, String plan) {
         repository.savePlayerPlan(gameId, playerId, plan);
 
-        GameState gameState = new GameStateImpl(gameId, repository);
+        GameState gameState = new GameStateImpl(gameId, repository, userService);
         GameEnvironmentImpl environment = new GameEnvironmentImpl(repository, gameId, gameState, playerId);
 
         Map<String, Region> startState = gameState.getTerritory();
@@ -125,7 +128,7 @@ public class GameService {
     }
 
     private void calculateInterest(String gameId) {
-        GameStateImpl gameState = new GameStateImpl(gameId, repository);
+        GameStateImpl gameState = new GameStateImpl(gameId, repository, userService);
         gameState.calculateInterest();
     }
 

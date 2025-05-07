@@ -36,4 +36,9 @@ public class UserService {
         return userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new UserException.NotFound(username));
     }
+
+    public User getUserById(String userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UserException.NotFound(userId));
+    }
 }
