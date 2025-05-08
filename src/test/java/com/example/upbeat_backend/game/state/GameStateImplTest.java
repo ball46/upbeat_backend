@@ -1,22 +1,30 @@
 package com.example.upbeat_backend.game.state;
 
 import com.example.upbeat_backend.game.dto.reids.CurrentStateDTO;
+import com.example.upbeat_backend.game.dto.reids.GameInfoDTO;
 import com.example.upbeat_backend.game.dto.reids.TerritorySizeDTO;
+import com.example.upbeat_backend.game.dto.reids.GameConfigDTO;
+import com.example.upbeat_backend.game.model.Position;
+import com.example.upbeat_backend.game.model.enums.GameStatus;
 import com.example.upbeat_backend.game.model.enums.Keyword;
 import com.example.upbeat_backend.game.state.player.Player;
 import com.example.upbeat_backend.game.state.player.PlayerImpl;
 import com.example.upbeat_backend.game.state.region.Region;
 import com.example.upbeat_backend.game.state.region.RegionImpl;
+import com.example.upbeat_backend.model.User;
 import com.example.upbeat_backend.repository.RedisGameStateRepository;
 import com.example.upbeat_backend.service.UserService;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -37,6 +45,8 @@ class GameStateImplTest {
     private GameStateImpl gameState;
     private CurrentStateDTO currentState;
     private Player player;
+    private GameInfoDTO gameInfo;
+    private GameConfigDTO gameConfig;
 
     @BeforeEach
     void setUp() {
@@ -47,6 +57,11 @@ class GameStateImplTest {
                 .currentCol(5)
                 .build();
         player = new PlayerImpl(PLAYER_ID, "Player1", 100, 1, 1);
+        gameInfo = GameInfoDTO.builder()
+                .gameStatus(GameStatus.IN_PROGRESS)
+                .currentTurn(10)
+                .build();
+        gameConfig = GameConfigDTO.builder().interestPct(10).build();
     }
 
     @Test
@@ -687,5 +702,313 @@ class GameStateImplTest {
 
         assertThat(result).isEqualTo(13);
         verify(repository).incrementPlayerBudget(GAME_ID, PLAYER_ID, -1);
+    }
+
+    @Test
+    void nearby_shouldReturnZero_whenPlayerHasNoInitialBudget() {
+        Player playerWithNoBudget = new PlayerImpl(PLAYER_ID, "Player1", 0, 1, 1);
+        when(repository.getCurrentState(GAME_ID)).thenReturn(currentState);
+        when(repository.getPlayer(GAME_ID, PLAYER_ID)).thenReturn(playerWithNoBudget);
+
+        long result = gameState.nearby(Keyword.UP);
+
+        assertThat(result).isEqualTo(0);
+        verify(repository, never()).getRegion(any(), anyInt(), anyInt());
+    }
+
+    @Test
+    void nearby_shouldReturnZero_whenNoOpponentFoundInDirection() {
+        when(repository.getCurrentState(GAME_ID)).thenReturn(currentState);
+        when(repository.getPlayer(GAME_ID, PLAYER_ID)).thenReturn(player);
+        when(repository.getTerritorySize(GAME_ID)).thenReturn(TerritorySizeDTO.builder().rows(10).cols(10).build());
+
+        Map<String, Region> emptyRegions = createEmptyRegionMap();
+        when(repository.getAllRegions(GAME_ID)).thenReturn(emptyRegions);
+
+        long result = gameState.nearby(Keyword.UP);
+
+        assertThat(result).isEqualTo(0);
+        verify(repository).incrementPlayerBudget(GAME_ID, PLAYER_ID, -1);
+    }
+
+    @Test
+    void nearby_shouldCalculateCorrectValue_whenOpponentFoundInDirection() {
+        when(repository.getCurrentState(GAME_ID)).thenReturn(currentState);
+        when(repository.getPlayer(GAME_ID, PLAYER_ID)).thenReturn(player);
+        when(repository.getTerritorySize(GAME_ID)).thenReturn(TerritorySizeDTO.builder().rows(10).cols(10).build());
+
+        Map<String, Region> regionMap = createEmptyRegionMap();
+
+        String opponentId = "opponent-1";
+        Region opponentRegion = new RegionImpl(100, 3, 5);
+        opponentRegion.updateOwner(opponentId);
+        opponentRegion.updateDeposit(5);
+        regionMap.put("3:5", opponentRegion);
+
+        when(repository.getAllRegions(GAME_ID)).thenReturn(regionMap);
+
+        long result = gameState.nearby(Keyword.UP);
+
+        assertThat(result).isEqualTo(205);
+        verify(repository).incrementPlayerBudget(GAME_ID, PLAYER_ID, -1);
+    }
+
+    @Test
+    void nearby_shouldCalculateValueWithDepositModulo_whenDepositIsLargerThanTen() {
+        when(repository.getCurrentState(GAME_ID)).thenReturn(currentState);
+        when(repository.getPlayer(GAME_ID, PLAYER_ID)).thenReturn(player);
+        when(repository.getTerritorySize(GAME_ID)).thenReturn(TerritorySizeDTO.builder().rows(10).cols(10).build());
+
+        Map<String, Region> regionMap = createEmptyRegionMap();
+
+        String opponentId = "opponent-1";
+        Region opponentRegion = new RegionImpl(100, 3, 5);
+        opponentRegion.updateOwner(opponentId);
+        opponentRegion.updateDeposit(47);
+        regionMap.put("3:5", opponentRegion);
+
+        when(repository.getAllRegions(GAME_ID)).thenReturn(regionMap);
+
+        long result = gameState.nearby(Keyword.UP);
+
+        assertThat(result).isEqualTo(207);
+        verify(repository).incrementPlayerBudget(GAME_ID, PLAYER_ID, -1);
+    }
+
+    @Test
+    void nearby_shouldWorkCorrectly_forDifferentDirections() {
+        when(repository.getCurrentState(GAME_ID)).thenReturn(currentState);
+        when(repository.getPlayer(GAME_ID, PLAYER_ID)).thenReturn(player);
+        when(repository.getTerritorySize(GAME_ID)).thenReturn(TerritorySizeDTO.builder().rows(10).cols(10).build());
+
+        Map<String, Region> regionMap = createEmptyRegionMap();
+
+        String opponentId = "opponent-1";
+        Region opponentRegion = new RegionImpl(100, 6, 5);
+        opponentRegion.updateOwner(opponentId);
+        opponentRegion.updateDeposit(3);
+        regionMap.put("6:5", opponentRegion);
+
+        when(repository.getAllRegions(GAME_ID)).thenReturn(regionMap);
+
+        long result = gameState.nearby(Keyword.DOWN);
+
+        assertThat(result).isEqualTo(103);
+        verify(repository).incrementPlayerBudget(GAME_ID, PLAYER_ID, -1);
+    }
+
+    private Map<String, Region> createEmptyRegionMap() {
+        Map<String, Region> regionMap = new HashMap<>();
+        for (int i = 1; i <= 10; i++) {
+            for (int j = 1; j <= 10; j++) {
+                String key = i + ":" + j;
+                regionMap.put(key, new RegionImpl(100, i, j));
+            }
+        }
+        return regionMap;
+    }
+
+    @Test
+    void getRandom_shouldReturnValueInRange() {
+        long result = gameState.getRandom();
+        assertThat(result).isGreaterThanOrEqualTo(0);
+        assertThat(result).isLessThan(1000);
+    }
+
+    @Test
+    void calculateInterest_shouldAddInterestToOwnedRegions() {
+        when(repository.getGameInfo(GAME_ID)).thenReturn(gameInfo);
+        when(repository.getGameConfig(GAME_ID)).thenReturn(gameConfig);
+
+        Map<String, Region> regionMap = getStringRegionMap();
+
+        when(repository.getAllRegions(GAME_ID)).thenReturn(regionMap);
+
+        gameState.calculateInterest();
+
+        verify(repository).updateRegion(GAME_ID, 2, 3, 146L, PLAYER_ID); // 100 + (100 * 10 / 100) = 110
+        verify(repository).updateRegion(GAME_ID, 4, 5, 306L, PLAYER_ID); // 200 + (200 * 10 / 100) = 220
+        verify(repository).updateRegion(GAME_ID, 8, 9, 471L, "another-player");
+    }
+
+    private static @NotNull Map<String, Region> getStringRegionMap() {
+        Map<String, Region> regionMap = new HashMap<>();
+
+        Region playerRegion1 = new RegionImpl(500, 2, 3);
+        playerRegion1.updateOwner(PLAYER_ID);
+        playerRegion1.updateDeposit(100);
+        regionMap.put("2:3", playerRegion1);
+
+        Region playerRegion2 = new RegionImpl(500, 4, 5);
+        playerRegion2.updateOwner(PLAYER_ID);
+        playerRegion2.updateDeposit(200);
+        regionMap.put("4:5", playerRegion2);
+
+        Region emptyRegion = new RegionImpl(500, 6, 7);
+        emptyRegion.updateDeposit(50);
+        regionMap.put("6:7", emptyRegion);
+
+        Region opponentRegion = new RegionImpl(500, 8, 9);
+        opponentRegion.updateOwner("another-player");
+        opponentRegion.updateDeposit(300);
+        regionMap.put("8:9", opponentRegion);
+        return regionMap;
+    }
+
+    @Test
+    void calculateInterest_shouldHandleMaxDeposit() {
+        when(repository.getGameInfo(GAME_ID)).thenReturn(gameInfo);
+        when(repository.getGameConfig(GAME_ID)).thenReturn(gameConfig);
+
+        Map<String, Region> regionMap = new HashMap<>();
+
+        Region nearMaxRegion = new RegionImpl(500, 2, 3);
+        nearMaxRegion.updateOwner(PLAYER_ID);
+        nearMaxRegion.updateDeposit(490);
+        regionMap.put("2:3", nearMaxRegion);
+
+        when(repository.getAllRegions(GAME_ID)).thenReturn(regionMap);
+
+        gameState.calculateInterest();
+
+        verify(repository).updateRegion(GAME_ID, 2, 3, 500, PLAYER_ID);
+    }
+
+    @Test
+    void calculateInterest_shouldDoNothing_whenNoOwnedRegions() {
+        Map<String, Region> emptyRegionMap = new HashMap<>();
+        when(repository.getAllRegions(GAME_ID)).thenReturn(emptyRegionMap);
+
+        gameState.calculateInterest();
+
+        verify(repository, never()).updateRegion(anyString(), anyInt(), anyInt(), anyLong(), any());
+    }
+
+    @Test
+    void initialize_shouldCreateTerritoryAndAssignCityCenters() {
+        GameConfigDTO gameConfig = GameConfigDTO.builder()
+                .rows(10)
+                .cols(10)
+                .initBudget(100)
+                .build();
+        when(repository.getGameConfig(GAME_ID)).thenReturn(gameConfig);
+
+        List<String> playerIds = Arrays.asList("player-1", "player-2");
+        when(repository.getGamePlayers(GAME_ID)).thenReturn(playerIds);
+
+        User mockUser1 = mock(User.class);
+        when(mockUser1.getUsername()).thenReturn("Player1Name");
+        when(userService.getUserById("player-1")).thenReturn(mockUser1);
+
+        User mockUser2 = mock(User.class);
+        when(mockUser2.getUsername()).thenReturn("Player2Name");
+        when(userService.getUserById("player-2")).thenReturn(mockUser2);
+
+        gameState.initialize();
+
+        verify(repository, times(playerIds.size())).savePlayer(eq(GAME_ID), any(Player.class));
+        verify(repository, times(playerIds.size())).saveRegion(eq(GAME_ID), any(Region.class));
+        verify(repository).saveCurrentState(eq(GAME_ID), eq("player-1"), anyInt(), anyInt());
+    }
+
+    @Test
+    void initialize_shouldEnsureCityCentersAreInWasteland() {
+        GameConfigDTO gameConfig = GameConfigDTO.builder()
+                .rows(10)
+                .cols(10)
+                .initBudget(100)
+                .build();
+        when(repository.getGameConfig(GAME_ID)).thenReturn(gameConfig);
+
+        List<String> playerIds = Collections.singletonList("player-1");
+        when(repository.getGamePlayers(GAME_ID)).thenReturn(playerIds);
+
+        User mockUser1 = mock(User.class);
+        when(mockUser1.getUsername()).thenReturn("Player1Name");
+        when(userService.getUserById("player-1")).thenReturn(mockUser1);
+
+        gameState = spy(gameState);
+        doAnswer(new Answer<Position>() {
+            private int callCount = 0;
+
+            @Override
+            public Position answer(InvocationOnMock invocation) {
+                callCount++;
+                if (callCount <= 3) {
+                    return new Position(1, 1);
+                } else {
+                    return new Position(5, 5);
+                }
+            }
+        }).when(gameState).randomCityCenter(anyInt(), anyInt());
+
+        gameState.initialize();
+
+        ArgumentCaptor<Player> playerCaptor = ArgumentCaptor.forClass(Player.class);
+        verify(repository).savePlayer(eq(GAME_ID), playerCaptor.capture());
+
+        Player savedPlayer = playerCaptor.getValue();
+        assertThat(savedPlayer.getCityCenterRow()).isEqualTo(1);
+        assertThat(savedPlayer.getCityCenterCol()).isEqualTo(1);
+
+        verify(gameState).randomCityCenter(anyInt(), anyInt());
+    }
+
+    @Test
+    void initialize_shouldSetupCorrectPlayerDataWithInitialBudget() {
+        int initialBudget = 150;
+        GameConfigDTO gameConfig = GameConfigDTO.builder()
+                .rows(10)
+                .cols(10)
+                .initBudget(initialBudget)
+                .build();
+        when(repository.getGameConfig(GAME_ID)).thenReturn(gameConfig);
+
+        List<String> playerIds = Arrays.asList("player-1", "player-2");
+        when(repository.getGamePlayers(GAME_ID)).thenReturn(playerIds);
+
+        gameState = spy(gameState);
+        doReturn(new Position(3, 4), new Position(7, 8))
+                .when(gameState).randomCityCenter(anyInt(), anyInt());
+
+        User mockUser1 = mock(User.class);
+        when(mockUser1.getUsername()).thenReturn("Player1Name");
+        when(userService.getUserById("player-1")).thenReturn(mockUser1);
+
+        User mockUser2 = mock(User.class);
+        when(mockUser2.getUsername()).thenReturn("Player2Name");
+        when(userService.getUserById("player-2")).thenReturn(mockUser2);
+
+        gameState.initialize();
+
+        ArgumentCaptor<Player> playerCaptor = ArgumentCaptor.forClass(Player.class);
+        verify(repository, times(2)).savePlayer(eq(GAME_ID), playerCaptor.capture());
+
+        List<Player> savedPlayers = playerCaptor.getAllValues();
+
+        Player player1 = savedPlayers.getFirst();
+        assertThat(player1.getId()).isEqualTo("player-1");
+        assertThat(player1.getName()).isEqualTo("Player1Name");
+        assertThat(player1.getBudget()).isEqualTo(initialBudget);
+        assertThat(player1.getCityCenterRow()).isEqualTo(3);
+        assertThat(player1.getCityCenterCol()).isEqualTo(4);
+
+        Player player2 = savedPlayers.get(1);
+        assertThat(player2.getId()).isEqualTo("player-2");
+        assertThat(player2.getName()).isEqualTo("Player2Name");
+        assertThat(player2.getBudget()).isEqualTo(initialBudget);
+        assertThat(player2.getCityCenterRow()).isEqualTo(7);
+        assertThat(player2.getCityCenterCol()).isEqualTo(8);
+    }
+
+    @Test
+    void initialize_shouldHandleNoPlayersCase() {
+        when(repository.getGamePlayers(GAME_ID)).thenReturn(Collections.emptyList());
+
+        gameState.initialize();
+
+        verify(repository, never()).savePlayer(any(), any());
+        verify(repository, never()).saveRegion(any(), any());
+        verify(repository, never()).saveCurrentState(any(), any(), anyInt(), anyInt());
     }
 }

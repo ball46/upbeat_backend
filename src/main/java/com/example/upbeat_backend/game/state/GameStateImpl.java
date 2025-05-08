@@ -303,8 +303,9 @@ public class GameStateImpl implements GameState {
     }
 
     public void initialize() {
-        GameConfigDTO config = repository.getGameConfig(gameId);
         List<String> players = repository.getGamePlayers(gameId);
+        if (players.isEmpty()) return;
+        GameConfigDTO config = repository.getGameConfig(gameId);
         Territory territory = new TerritoryImpl(gameId, repository);
         Map<String, Region> regionMap = territory.createTerritory(config);
         String firstPlayerId = players.getFirst();
@@ -330,7 +331,7 @@ public class GameStateImpl implements GameState {
         }
     }
 
-    private Position randomCityCenter(int rows, int cols) {
+    Position randomCityCenter(int rows, int cols) {
         Random random = new Random();
         int row = random.nextInt(rows) + 1;
         int col = random.nextInt(cols) + 1;
