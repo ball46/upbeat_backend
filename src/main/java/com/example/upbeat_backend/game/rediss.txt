@@ -1,0 +1,46 @@
+game:{gameId}:info -> Hash
+  - status: (CREATED, RUNNING, FINISHED)
+  - createdAt: Timestamp
+  - maxPlayers: Integer
+  - currentTurn: Integer
+  - lastUpdatedAt: Timestamp
+
+game:{gameId}:config -> Hash
+  - rows: Integer
+  - cols: Integer
+  - initPlanMin: Integer
+  - initPlanSec: Integer
+  - initBudget: Long
+  - initCenterDep: Long
+  - planRevMin: Integer
+  - planRevSec: Integer
+  - revCost: Long
+  - maxDep: Long
+  - interestPct: int
+
+game:{gameId}:players -> Set (เก็บ player IDs)
+
+game:{gameId}:player:{playerId} -> Hash
+  - id: String
+  - name: String
+  - budget: Long
+  - cityCenterRow: Integer
+  - cityCenterCol: Integer
+
+game:{gameId}:player:{playerId}:plans -> List
+
+game:{gameId}:player:{playerId}:vars -> Hash
+  - varName: value
+
+game:{gameId}:territory:size -> Hash
+  - rows: Integer
+  - cols: Integer
+
+game:{gameId}:territory:regions -> Hash (key: "{row}:{col}")
+  - deposit: Long
+  - owner: playerId หรือ null
+
+game:{gameId}:currentState -> Hash
+  - currentPlayerId: String
+  - currentRow: Integer
+  - currentCol: Integer
