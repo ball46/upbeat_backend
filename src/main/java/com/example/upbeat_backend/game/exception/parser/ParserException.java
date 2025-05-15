@@ -71,7 +71,7 @@ public class ParserException {
     public static class InvalidDirection extends BaseException {
         public InvalidDirection(String direction, int position) {
             super("Invalid direction '" + direction + "' at position " + position +
-                  ". Expected: up, down, upleft, upright, downleft, downright",
+                  ". Expected: up, down, up left, up right, down left, down right",
                   HttpStatus.BAD_REQUEST,
                   "INVALID_DIRECTION");
         }
