@@ -1,6 +1,5 @@
 package com.example.upbeat_backend.game.service;
 
-import com.example.upbeat_backend.game.dto.reids.GameInfoDTO;
 import com.example.upbeat_backend.game.dto.response.game.GamePlayerResponseDTO;
 import com.example.upbeat_backend.game.dto.response.game.GameResultNotificationDTO;
 import com.example.upbeat_backend.game.dto.response.game.GameStartResponseDTO;
@@ -23,20 +22,21 @@ public class GameNotificationService {
         template.convertAndSend("/topic/game/" + data.getGameId() + "/game-started", data);
     }
 
-    public void gameFinished(String gameId, GameInfoDTO gameInfo, List<String> players) {
-        boolean isDraw = "draw".equals(gameInfo.getWinner());
-
-        GameResultNotificationDTO notification = GameResultNotificationDTO.builder()
-                .gameStatus(gameInfo.getGameStatus())
-                .gameId(gameId)
-                .isDraw(isDraw)
-                .winnerId(gameInfo.getWinner())
-                .build();
+    public void gameFinished(GameResultNotificationDTO data, List<String> players) {
+        template.convertAndSend("/topic/game/" + data.getGameId() + "/game-finished", data);
 
         for (String playerId : players) {
-            boolean isWinner = !isDraw && playerId.equals(gameInfo.getWinner());
-            notification.setWinner(isWinner);
-            template.convertAndSendToUser(playerId, "/queue/game.result", notification);
+            boolean isWinner = !data.isDraw() && playerId.equals(data.getWinnerId());
+
+            GameResultNotificationDTO playerNotification = GameResultNotificationDTO.builder()
+                    .gameStatus(data.getGameStatus())
+                    .gameId(data.getGameId())
+                    .isDraw(data.isDraw())
+                    .winnerId(data.getWinnerId())
+                    .isWinner(isWinner)
+                    .build();
+
+            template.convertAndSendToUser(playerId, "/queue/game.result", playerNotification);
         }
     }
 }

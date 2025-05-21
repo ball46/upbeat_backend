@@ -50,6 +50,7 @@ public class GameService {
         }
         repository.addPlayerToGame(gameId, playerId);
         players.add(playerId);
+
         GamePlayerResponseDTO result = GamePlayerResponseDTO.builder()
                 .gameId(gameId)
                 .playerId(playerId)
@@ -57,6 +58,7 @@ public class GameService {
                 .maxPlayers(gameInfo.getMaxPlayers())
                 .build();
         notificationService.playerJoined(result);
+
         return result;
     }
 
@@ -68,12 +70,14 @@ public class GameService {
         repository.updateGameStatus(gameId, GameStatus.IN_PROGRESS);
         initializeGameState(gameId);
         List<String> players = repository.getGamePlayers(gameId);
+
         GameStartResponseDTO result =  GameStartResponseDTO.builder()
                 .gameId(gameId)
                 .players(players)
                 .status(GameStatus.IN_PROGRESS)
                 .build();
         notificationService.gameStarted(result);
+
         return result;
     }
 
@@ -153,7 +157,6 @@ public class GameService {
 
     private boolean checkGameResult(String gameId) {
         List<String> remainingPlayers = repository.getPlayersWithCityCenters(gameId);
-
         boolean isGameFinished = remainingPlayers.size() <= 1;
 
         if (isGameFinished) {
@@ -162,14 +165,15 @@ public class GameService {
 
             GameInfoDTO gameInfo = validateGameExists(gameId);
             List<String> players = repository.getGamePlayers(gameId);
+
             boolean isDraw = "draw".equals(gameInfo.getWinner());
-            GameResultNotificationDTO result = GameResultNotificationDTO.builder()
+            GameResultNotificationDTO data = GameResultNotificationDTO.builder()
                     .gameStatus(gameInfo.getGameStatus())
                     .gameId(gameId)
                     .isDraw(isDraw)
                     .winnerId(gameInfo.getWinner())
                     .build();
-            notificationService.gameFinished(gameId, gameInfo, players);
+            notificationService.gameFinished(data, players);
         }
 
         return isGameFinished;
